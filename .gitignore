@@ -1,0 +1,7 @@
+# some important stuff to ignore
+__pycahce__/
+.vscode/
+
+face/
+data/
+save/

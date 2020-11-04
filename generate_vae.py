@@ -1,15 +1,15 @@
 """
-Simple script for training a VAE on CelebA. Formatted as Hydrogen notebook.
+Quick-n-dirty script for generating some samples from VAE model
 
 author: William Tong (wlt2115@columbia.edu)
-date: 10/20/2020
+date: 10/26/2019
 """
 
 # <codecell>
-import pickle
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
 from scipy.io import loadmat
 
@@ -21,28 +21,12 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 IM_DIMS = (178, 218)
 TOTAL_IMAGES = 202599
-SAVE_PATH = Path('save/vae_model/')
+MODEL_PATH = Path('vae_save/epoch_18.pt')
 DATA_PATH = Path('data/')
 IM_PATH = DATA_PATH / 'img'
 
 latent_dims = 40
-
-SEED = 53110
 train_test_split = 0.01
-batch_size = 32
-num_epochs = 20
-num_workers = 32
-
-log_every = 1000   # num batches
-save_every = 1    # num epochs
-
-if not SAVE_PATH.exists():
-    SAVE_PATH.mkdir(parents=True)
-
-device = torch.device('cpu')
-if torch.cuda.is_available():
-    device = torch.device('cuda')
-
 
 # <codecell>
 class VAE(nn.Module):
@@ -157,10 +141,10 @@ class VAE(nn.Module):
         :return:
         """
 
-        recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum') / batch_size
-        kld_loss = torch.sum(-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim = 1), dim = 0) / batch_size
-        loss = (recons_loss + kld_weight * kld_loss)
-        return {'loss': loss, 'mse':recons_loss, 'kld':kld_loss}
+        recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum')
+        kld_loss = torch.sum(-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim = 1), dim = 0)
+        loss = (recons_loss + kld_weight * kld_loss) / batch_size
+        return {'loss': loss, 'mse':recons_loss, 'kld':-kld_loss}
     
 
     def sample(self, num_samples:int) -> 'Tensor':
@@ -192,8 +176,9 @@ class VAE(nn.Module):
 
 
 
-
 # <codecell>
+
+# TODO: unify code better
 def _idx_to_im(im_idx):
     name = str(im_idx + 1).zfill(6) + '.jpg'
     im_path = IM_PATH / name
@@ -214,114 +199,51 @@ num_test = int(TOTAL_IMAGES * train_test_split)
 num_train = TOTAL_IMAGES - num_test
 
 ds = CelebADataset()
-test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(SEED))
-
-
-# <codecell>
-vae = VAE(latent_dims=latent_dims).to(device=device)
-vae = vae.double()
-
-optimizer = optim.Adam(vae.parameters())
-
-
-def eval(model, test_data, n_samples=100):
-    size = len(test_data)
-    idxs = np.random.choice(np.arange(size), n_samples, replace=False)
-    x = torch.stack([test_data[i] for i in idxs]).to(device)
-
-    with torch.no_grad():
-        reco_params = model(x)
-        loss = model.loss_function(*reco_params)
-    
-    return loss
+test_ds, train_ds = random_split(ds, (num_test, num_train))
 
 # <codecell>
-losses = []
-
-for e in range(num_epochs):
-    print('epoch: %d of %d' % (e+1, num_epochs))
-
-    loader = DataLoader(train_ds, 
-                        batch_size=batch_size, 
-                        shuffle=True, 
-                        num_workers=num_workers,
-                        pin_memory=torch.cuda.is_available())
-    total_batches = len(train_ds) // batch_size
-    
-    for i, x in enumerate(loader):
-        x = x.to(device)
-        optimizer.zero_grad()
-        output = vae(x)
-        total_loss = vae.loss_function(*output)['loss']
-        total_loss.backward()
-        optimizer.step()
-
-        if i % log_every == 0:
-            vae.eval()
-            loss = eval(vae, test_ds)
-            vae.train()
-
-            print_params = (i+1, total_batches, loss['loss'], loss['mse'], loss['kld'])
-            print('[batch %d/%d] loss: %f, mse: %f, kld: %f' % print_params)
-            losses.append({'iter': i, 'epoch': e, 'loss': loss})
-        
-    if e % save_every == 0:
-        torch.save({
-            'epoch': e,
-            'model_state_dict': vae.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss
-        }, SAVE_PATH / ('epoch_%d.pt' % e))
+vae = VAE(latent_dims=latent_dims).double()
+ckpt = torch.load(MODEL_PATH)
+vae.load_state_dict(ckpt['model_state_dict'])
 
 vae.eval()
-loss = eval(vae, test_ds)
-vae.train()
-
-print_params = (loss['loss'], loss['mse'], loss['kld'])
-print('final loss: %f, mse: %f, kld: %f' % print_params)
-losses.append({'iter': 0, 'epoch': e+1, 'loss': loss})
-
-with open(SAVE_PATH / 'loss.pk') as pkf:
-    pickle.dump(losses, pkf)
-
-torch.save({
-    'epoch': num_epochs,
-    'model_state_dict': vae.state_dict(),
-    'optimizer_state_dict': optimizer.state_dict(),
-    'loss': loss
-}, SAVE_PATH / 'final.pt')
-print('done!')
-
 
 # <codecell>
-# vae = VAE(latent_dims=40).double()
-# ckpt = torch.load(SAVE_PATH / 'final.pt')
-# vae.load_state_dict(ckpt['model_state_dict'])
+idx = 5
+samp_im = test_ds[idx].reshape(218, 178, 3)
 
-# vae.eval()
+plt.imshow(samp_im)
+plt.show()
 
-# # <codecell>
-# idx = 5
-# samp = test_ds[idx]
-# print(samp.shape)
+# <codecell>
+idx = 5
+samp = test_ds[idx].unsqueeze(0)
+print(samp.shape)
 
-# with torch.no_grad():
-#     reco = vae.reconstruct(samp)
+with torch.no_grad():
+    reco = vae.reconstruct(samp)
 
-#     reco_im = torch.squeeze(reco)
-#     samp_im = torch.squeeze(samp)
+    reco_im = torch.squeeze(reco).reshape(218, 178, 3)
+    samp_im = torch.squeeze(samp).reshape(218, 178, 3)
 
-# plt.imshow(samp_im)
-# plt.show()
-# plt.imshow(reco_im)
-# plt.show()
+plt.imshow(samp_im)
+plt.show()
+plt.imshow(reco_im)
+plt.show()
 
-# # <codecell>
-# with torch.no_grad():
-#     samp = vae.sample(2)
-#     samp_im = torch.squeeze(samp)
+# <codecell>
+with torch.no_grad():
+    samp = vae.sample(25)
+    samp_im = torch.squeeze(samp).reshape(25, 218, 178, 3)
 
-# plt.imshow(samp_im[0])
-# plt.show()
-# plt.imshow(samp_im[1])
-# plt.show()
+fig = plt.figure(figsize=(10, 10))
+grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                 nrows_ncols=(5, 5),  # creates 2x2 grid of axes
+                 axes_pad=0.1,  # pad between axes in inch.
+                 )
+
+for ax, im in zip(grid, samp_im):
+    ax.imshow(im)
+
+fig.suptitle('Sample faces drawn from VAE')
+plt.show()

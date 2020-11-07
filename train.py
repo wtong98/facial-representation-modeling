@@ -110,7 +110,7 @@ def main():
             
         if e % save_every == 0:
             torch.save({
-                'epoch': e,
+                'epoch': e+1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss
@@ -124,7 +124,7 @@ def main():
     logging.info('final loss: %f, mse: %f, kld: %f' % print_params)
     losses.append({'iter': 0, 'epoch': e+1, 'loss': loss})
 
-    with open(save_path / 'loss.pk') as pkf:
+    with open(save_path / 'loss.pk', 'wb') as pkf:
         pickle.dump(losses, pkf)
 
     torch.save({

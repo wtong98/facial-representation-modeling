@@ -38,5 +38,5 @@ def build_datasets(im_path: Path, train_test_split=0.01, seed=53110) -> (Dataset
         im_path = Path(im_path)
 
     ds = CelebADataset(im_path)
-    test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(SEED))
+    test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
     return train_ds, test_ds

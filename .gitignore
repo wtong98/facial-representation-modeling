@@ -1,5 +1,5 @@
 # some important stuff to ignore
-__pycahce__/
+__pycache__/
 .vscode/
 
 face/

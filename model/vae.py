@@ -19,10 +19,10 @@ from torch.nn import functional as F
 
 class VAE(nn.Module):
 
-    def __init__(self, latent_dims):
+    def __init__(self):
         super(VAE, self).__init__()
 
-        self.latent_dims = latent_dims
+        self.latent_dims = 40
 
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=16, kernel_size=5, stride=2, padding=2),
@@ -130,9 +130,9 @@ class VAE(nn.Module):
         """
         batch_size = recons.shape[0]
 
-        recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum')
-        kld_loss = torch.sum(-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim = 1), dim = 0)
-        loss = (recons_loss + kld_weight * kld_loss) / batch_size
+        recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum') / batch_size
+        kld_loss = torch.sum(-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim = 1), dim = 0) / batch_size
+        loss = (recons_loss + kld_weight * kld_loss)
         return {'loss': loss, 'mse':recons_loss, 'kld':-kld_loss}
     
 

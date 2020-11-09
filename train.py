@@ -61,7 +61,7 @@ def main():
 
     device = torch.device('cpu')
     if torch.cuda.is_available():
-        device = torch.device('gpu')
+        device = torch.device('cuda')
 
     model = None
     save_path = args.save
@@ -71,6 +71,9 @@ def main():
     else:
         logging.critical('model unimplemented: %s' % args.model)
         return
+    
+    if not save_path.exists():
+        save_path.mkdir(parents=True)
     
     model = model.double()
     model.to(device)

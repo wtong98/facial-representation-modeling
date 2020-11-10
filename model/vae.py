@@ -133,7 +133,7 @@ class VAE(nn.Module):
         recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum') / batch_size
         kld_loss = torch.sum(-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim = 1), dim = 0) / batch_size
         loss = (recons_loss + kld_weight * kld_loss)
-        return {'loss': loss, 'mse':recons_loss, 'kld':-kld_loss}
+        return {'loss': loss, 'mse':recons_loss, 'kld': kld_loss}
     
 
     def sample(self, num_samples:int) -> 'Tensor':

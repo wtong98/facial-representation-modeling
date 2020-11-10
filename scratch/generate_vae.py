@@ -21,8 +21,8 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 IM_DIMS = (178, 218)
 TOTAL_IMAGES = 202599
-MODEL_PATH = Path('vae_save/epoch_18.pt')
-DATA_PATH = Path('data/')
+MODEL_PATH = Path('vae_save/epoch_19.pt')
+DATA_PATH = Path('../data/')
 IM_PATH = DATA_PATH / 'img'
 
 latent_dims = 40
@@ -203,7 +203,7 @@ test_ds, train_ds = random_split(ds, (num_test, num_train))
 
 # <codecell>
 vae = VAE(latent_dims=latent_dims).double()
-ckpt = torch.load(MODEL_PATH)
+ckpt = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
 vae.load_state_dict(ckpt['model_state_dict'])
 
 vae.eval()

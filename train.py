@@ -117,7 +117,7 @@ def main():
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss
-            }, save_path / ('epoch_%d.pt' % e+1))
+            }, save_path / ('epoch_%d.pt' % str(e+1))
 
     model.eval()
     loss = _eval(model, test_ds, device)

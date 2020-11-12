@@ -76,6 +76,7 @@ def main():
         save_path.mkdir(parents=True)
     
     model = model.double()
+    # TODO: check that this works as intended
     model.to(device)
     optimizer = optim.Adam(model.parameters())
 
@@ -117,7 +118,7 @@ def main():
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss
-            }, save_path / ('epoch_%d.pt' % str(e+1))
+            }, save_path / ('epoch_%d.pt' % (e+1)))
 
     model.eval()
     loss = _eval(model, test_ds, device)

@@ -146,9 +146,9 @@ class VAE(nn.Module):
         """
 
         z = torch.randn(num_samples, self.latent_dims).double()
-
-        # TODO: for gpu power:
-        # z = z.to(current_device)
+        first_tensor = next(self.parameters())
+        if first_tensor.is_cuda:
+            z = z.to(torch.device('cuda'))
 
         samples = self.decode(z)
         return samples

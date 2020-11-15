@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 IM_DIMS = (178, 218)
 TOTAL_IMAGES = 202599
-MODEL_PATH = Path('vae_save/epoch_19.pt')
+MODEL_PATH = Path('vae_save/final.pt')
 DATA_PATH = Path('../data/')
 IM_PATH = DATA_PATH / 'img'
 

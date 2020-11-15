@@ -37,7 +37,6 @@ def _build_parser():
 
 
 def _sample_images(model, batch_size, num_images, dataset, out_dir):
-    rev_dims = (IM_DIMS[1], IM_DIMS[0])
     batch_size = min(batch_size, num_images)
     total = 0
 
@@ -53,7 +52,7 @@ def _sample_images(model, batch_size, num_images, dataset, out_dir):
     pbar = tqdm(total=num_images)
     with torch.no_grad():
         while total < num_images:
-            samp = model.sample(batch_size).reshape(batch_size, *(rev_dims), 3)
+            samp = model.sample(batch_size).reshape(batch_size, *(IM_DIMS), 3)
             samp = samp.numpy()
 
             for i, image in enumerate(samp):
@@ -62,7 +61,7 @@ def _sample_images(model, batch_size, num_images, dataset, out_dir):
                 im_path = im_dir / ('%d.png' % idx)
 
 
-                real_im = dataset[idx].reshape(*(rev_dims), 3)
+                real_im = dataset[idx].reshape(*(IM_DIMS), 3)
                 real_im = real_im.numpy()
 
                 imageio.imwrite(samp_path, _to_rgb(image))
@@ -78,7 +77,6 @@ def _to_rgb(im):
     return np.uint8(im * 255)
             
 
-# TODO: install with version of python on ssrde, to maintain compatability
 def main():
     parser = _build_parser()
     args = parser.parse_args()

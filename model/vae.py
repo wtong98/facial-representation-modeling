@@ -42,14 +42,14 @@ class VAE(nn.Module):
             nn.LeakyReLU(),
         )
 
-        center_size = 128*12*14
+        center_size = 128*14*12
         self.fc_mu = nn.Linear(center_size, self.latent_dims)
         self.fc_var = nn.Linear(center_size, self.latent_dims)
 
         self.decoder_input = nn.Linear(self.latent_dims, center_size)
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=5, 
-                               stride=2, padding=2, output_padding=(0,1)),
+                               stride=2, padding=2, output_padding=(1,0)),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(),
 
@@ -96,7 +96,7 @@ class VAE(nn.Module):
         """
 
         result = self.decoder_input(z)
-        result = result.view(-1, 128, 12, 14)
+        result = result.view(-1, 128, 14, 12)
         result = self.decoder(result)
         return result
 

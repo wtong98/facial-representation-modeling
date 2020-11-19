@@ -10,6 +10,7 @@ from pathlib import Path
 import imageio
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model.vae import VAE
@@ -35,8 +36,8 @@ def _build_parser():
 
     return parser
 
-
-def _sample_images(model, batch_size, num_images, dataset, out_dir):
+# TODO: debug FID with small dataset size
+def _sample_images(model, batch_size, num_images, dataset, out_dir, workers=4):
     batch_size = min(batch_size, num_images)
     total = 0
 
@@ -51,27 +52,65 @@ def _sample_images(model, batch_size, num_images, dataset, out_dir):
 
     pbar = tqdm(total=num_images)
     with torch.no_grad():
-        while total < num_images:
-            samp = model.sample(batch_size).reshape(batch_size, *(IM_DIMS), 3)
-            samp = samp.numpy()
-
-            for i, image in enumerate(samp):
-                idx = total + i
+        loader = DataLoader(dataset, 
+                        batch_size=batch_size, 
+                        num_workers=workers,
+                        pin_memory=torch.cuda.is_available())
+        
+        for images in loader:
+            samp = model.reconstruct(images)
+            for i, reco in enumerate(samp):
+                idx = pbar.n
                 samp_path = samp_dir / ('%d.png' % idx)
                 im_path = im_dir / ('%d.png' % idx)
 
+                real_im = images[i].reshape(*IM_DIMS, 3).numpy()
+                reco = reco.reshape(*IM_DIMS, 3). numpy()
 
-                real_im = dataset[idx].reshape(*(IM_DIMS), 3)
-                real_im = real_im.numpy()
-
-                imageio.imwrite(samp_path, _to_rgb(image))
+                imageio.imwrite(samp_path, _to_rgb(reco))
                 imageio.imwrite(im_path, _to_rgb(real_im))
                 pbar.update(1)
-            
-            total += batch_size
-            batch_size = min(batch_size, num_images - total)
+
+                if pbar.n == pbar.total:
+                    pbar.close()
+                    return
+
+
+# def _sample_images(model, batch_size, num_images, dataset, out_dir):
+#     batch_size = min(batch_size, num_images)
+#     total = 0
+
+#     samp_dir = out_dir / 'sample'
+#     im_dir = out_dir / 'image'
     
-    pbar.close()
+#     if not samp_dir.exists():
+#         samp_dir.mkdir()
+
+#     if not im_dir.exists():
+#         im_dir.mkdir()
+
+#     pbar = tqdm(total=num_images)
+#     with torch.no_grad():
+#         while total < num_images:
+#             samp = model.sample(batch_size).reshape(batch_size, *(IM_DIMS), 3)
+#             samp = samp.numpy()
+
+#             for i, image in enumerate(samp):
+#                 idx = total + i
+#                 samp_path = samp_dir / ('%d.png' % idx)
+#                 im_path = im_dir / ('%d.png' % idx)
+
+#                 real_im = dataset[idx].reshape(*(IM_DIMS), 3)
+#                 real_im = real_im.numpy()
+
+#                 imageio.imwrite(samp_path, _to_rgb(image))
+#                 imageio.imwrite(im_path, _to_rgb(real_im))
+#                 pbar.update(1)
+            
+#             total += batch_size
+#             batch_size = min(batch_size, num_images - total)
+    
+#     pbar.close()
 
 def _to_rgb(im):
     return np.uint8(im * 255)

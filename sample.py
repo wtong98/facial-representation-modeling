@@ -37,6 +37,7 @@ def _build_parser():
     return parser
 
 # TODO: debug FID with small dataset size
+# TODO: doesn't work with GPU
 def _sample_images(model, batch_size, num_images, dataset, out_dir, workers=4):
     batch_size = min(batch_size, num_images)
     total = 0

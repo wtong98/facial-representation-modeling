@@ -42,7 +42,7 @@ def _build_parser():
 
 def _init_record(samps):
     record = {
-        'pair': np.zeros((2, samps.shape[0], 3, *IM_DIMS)),
+        'pair': np.zeros((2, samps.shape[0], *IM_DIMS, 3)),
         'distance': np.zeros(samps.shape[0])
     }    
 
@@ -82,14 +82,14 @@ def main():
     if not args.out.parent.exists():
         args.out.parent.mkdir()
 
-    _, test_ds = build_datasets(args.im_path, train_test_split=1, total=10)
+    _, test_ds = build_datasets(args.im_path, train_test_split=1)
 
     ckpt = torch.load(args.save_path, map_location=device)
     model.load_state_dict(ckpt['model_state_dict'])
     model.eval()
 
     with torch.no_grad():
-        samps = model.sample(args.samples)
+        samps = model.sample(args.samples).reshape(-1, *IM_DIMS, 3)
 
     loader = DataLoader(test_ds, 
                         batch_size=args.batch, 
@@ -99,9 +99,10 @@ def main():
     record = _init_record(samps)
     with tqdm(total=TOTAL_IMAGES) as pbar:
         for chunk in loader:
-            _update_winner(chunk, record, pbar)
+            _update_winner(chunk.reshape(-1, *IM_DIMS, 3), record, pbar)
     
     np.save(args.out, record['pair'])
+    print('final distances:', record['distance'])
     
 
 

@@ -78,7 +78,7 @@ class HM_bw(nn.Module):
         # Run recognition layers, saving stochastic outputs.
         for i in range(self.num_layers):
             x = self.r(i)(x)
-            x = F.sigmoid(x)
+            x = torch.sigmoid(x)
             x = self.layer_output(x, self.training)
             results.append(x)
 
@@ -95,7 +95,7 @@ class HM_bw(nn.Module):
             else:
                 x_target = recognition_outputs[-(i+2)]
             x = self.g(i)(x_input)
-            x = F.sigmoid(x)
+            x = torch.sigmoid(x)
             results.append(nn.BCELoss()(x, x_target))
 
         return results
@@ -110,7 +110,7 @@ class HM_bw(nn.Module):
         # Fit the bias to the final layer.
         x_last = recognition_outputs[-1]
         x = self.g_bias.view(1, -1).expand(batch_size, self.g_bias.size(0))
-        x = F.sigmoid(x)
+        x = torch.sigmoid(x)
         generation_bias_loss = nn.BCELoss()(x, x_last)
 
         # Run Generation Net.
@@ -129,7 +129,7 @@ class HM_bw(nn.Module):
             else:
                 x_target = generative_outputs[-(i+2)]
             x = self.r(i)(x_input)
-            x = F.sigmoid(x)
+            x = torch.sigmoid(x)
             results.append(nn.BCELoss()(x, x_target))
 
         return results
@@ -143,7 +143,7 @@ class HM_bw(nn.Module):
                 x = self.g(i)(x_initial)
             else:
                 x = self.g(i)(x)
-            x = F.sigmoid(x)
+            x = torch.sigmoid(x)
             x = self.layer_output(x, self.training)
             results.append(x)
 
@@ -155,7 +155,7 @@ class HM_bw(nn.Module):
 
         # We do not use the input `x`, rather we use the bias.
         bias = self.g_bias.view(1, -1)
-        x = F.sigmoid(bias)
+        x = torch.sigmoid(bias)
         x = x.expand(batch_size, self.g_bias.size(0))
         x = self.layer_output(x, self.training)
         generation_bias_output = x

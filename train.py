@@ -103,7 +103,10 @@ def main():
             x = x.to(device)
             optimizer.zero_grad()
             output = model(x)
-            total_loss = model.loss_function(*output)['loss']
+            total_loss = model.loss_function(*output)
+            if type(total_loss) is dict: # TODO: generalize loss handling
+                total_loss = total_loss['loss']
+
             total_loss.backward()
             optimizer.step()
 

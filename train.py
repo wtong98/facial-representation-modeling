@@ -118,7 +118,8 @@ def main():
                 # TODO: generalize printing
                 # print_params = (i+1, total_batches, loss['loss'], loss['mse'], loss['kld'])
                 # logging.info('[batch %d/%d] loss: %f, mse: %f, kld: %f' % print_params)
-                logging.info('[batch %d/%d] loss: %f' % loss)
+                print_params = (i+1, total_batches, loss)
+                logging.info('[batch %d/%d] loss: %f' % print_params)
                 losses.append({'iter': i, 'epoch': e, 'loss': loss})
             
         if e % save_every == 0:

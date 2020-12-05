@@ -224,7 +224,7 @@ class HM_color(nn.Module):
         return outputs
 
     
-    def loss_function(self, fwd_outputs: list):
+    def loss_function(self, *fwd_outputs):
         losses = [model.loss_function(*output) for model, output in zip(self.rgb_models, fwd_outputs)]
         return sum(losses)
 

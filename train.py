@@ -19,6 +19,7 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset, random_split
 
+from model.hm import HM
 from model.vae import VAE
 from dataset.celeba import build_datasets
 
@@ -29,9 +30,9 @@ def _build_parser():
         help='Path to directory of .jpg images')
     parser.add_argument('--save', type=Path, default=Path('save/'),
         help='Path to model save directory. Default=save/')
-    parser.add_argument('--model', type=str, choices=['vae', 'hm'], default='vae',
+    parser.add_argument('--model', type=str, choices=['vae', 'hm'], default='hm',
         help='Type of model to train, either vae for variational autoencoder or hm for helmholtz machine. ' +\
-             'Defaults to vae')
+             'Defaults to hm')
     parser.add_argument('--epochs', type=int, default=20,
         help='Number of epochs to train for. Defaults to 20')
     parser.add_argument('--batch_size', type=int, default=32,
@@ -41,7 +42,8 @@ def _build_parser():
 
     return parser
 
-def _eval(model, test_data, device, n_samples=1000):
+# TODO: switch back when not MNIST
+def _eval(model, test_data, device, n_samples=100):
     size = len(test_data)
     idxs = np.random.choice(np.arange(size), n_samples, replace=False)
     x = torch.stack([test_data[i] for i in idxs]).to(device)
@@ -68,6 +70,9 @@ def main():
     if args.model == 'vae':
         model = VAE()
         save_path = save_path / 'vae'
+    elif args.model == 'hm':
+        model = HM()  # TODO: pass in args.color
+        save_path = save_path / 'hm'
     else:
         logging.critical('model unimplemented: %s' % args.model)
         return
@@ -76,7 +81,6 @@ def main():
         save_path.mkdir(parents=True)
     
     model = model.double()
-    # TODO: check that this works as intended
     model.to(device)
     optimizer = optim.Adam(model.parameters())
 
@@ -108,8 +112,10 @@ def main():
                 loss = _eval(model, test_ds, device)
                 model.train()
 
-                print_params = (i+1, total_batches, loss['loss'], loss['mse'], loss['kld'])
-                logging.info('[batch %d/%d] loss: %f, mse: %f, kld: %f' % print_params)
+                # TODO: generalize printing
+                # print_params = (i+1, total_batches, loss['loss'], loss['mse'], loss['kld'])
+                # logging.info('[batch %d/%d] loss: %f, mse: %f, kld: %f' % print_params)
+                logging.info('[batch %d/%d] loss: %f' % loss)
                 losses.append({'iter': i, 'epoch': e, 'loss': loss})
             
         if e % save_every == 0:

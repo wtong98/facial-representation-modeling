@@ -1,6 +1,7 @@
 # some important stuff to ignore
 __pycache__/
 .vscode/
+*.png
 
 face/
 data/

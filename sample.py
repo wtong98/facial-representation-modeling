@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model.vae import VAE
+from model.hm import HM
 from dataset.celeba import build_datasets, IM_DIMS
 
 
@@ -130,6 +131,8 @@ def main():
     model = None
     if args.model == 'vae':
         model = VAE().double().to(device)
+    elif args.model == 'hm':
+        model = HM().double().to(device)
     else:
         logging.critical('model unimplemented: %s' % args.model)
         return

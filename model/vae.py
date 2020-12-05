@@ -5,16 +5,8 @@ author: William Tong (wlt2115@columbia.edu)
 date: 11/5/2020
 """
 
-from pathlib import Path
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import ImageGrid
-import numpy as np
-from scipy.io import loadmat
-
 import torch
 from torch import nn
-from torch import optim
 from torch.nn import functional as F
 
 class VAE(nn.Module):

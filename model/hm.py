@@ -200,7 +200,7 @@ class HM_color(nn.Module):
         super(HM_color, self).__init__()
 
         if layers is None:
-            layers = [38804, 4096, 1024, 256, 64]
+            layers = [38804, 2048, 128, 32]
 
         self.rgb_models = [
             HM_bw(layers),

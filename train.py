@@ -80,7 +80,7 @@ def main():
     if not save_path.exists():
         save_path.mkdir(parents=True)
     
-    model = model.double()
+    model = model.float()
     model.to(device)
     optimizer = optim.Adam(model.parameters())
 

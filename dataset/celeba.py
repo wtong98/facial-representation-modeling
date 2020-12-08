@@ -24,7 +24,7 @@ class CelebADataset(Dataset):
         target_path = self.im_path / name
 
         im = plt.imread(target_path).reshape(-1, *IM_DIMS)
-        im = im.astype('double') / 255
+        im = im.astype('float32') / 255
         return torch.from_numpy(im)
 
     def __len__(self):

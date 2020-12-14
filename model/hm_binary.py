@@ -1,34 +1,17 @@
 """
-Quick-n-dirty script for generating some samples from VAE model
+A simple Helmholtz machine model for learning faces.
+Adapated from: https://github.com/mrdrozdov/pytorch-machines/blob/master/helmholtz.py
 
-author: William Tong (wlt2115@columbia.edu)
-date: 10/26/2019
+author: William Tong
+date: 12/1/2020
 """
-
-# <codecell>
-from pathlib import Path
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import ImageGrid
-import numpy as np
-from scipy.io import loadmat
 
 import torch
 from torch import nn
 from torch.autograd import Variable
 from torch.nn import ParameterList, functional as F
 from torch.nn.parameter import Parameter
-from torch.utils.data import DataLoader, Dataset, random_split
 
-IM_DIMS = (178, 218)
-TOTAL_IMAGES = 202599
-MODEL_PATH = Path('epoch_40.pt')
-DATA_PATH = Path('../data/')
-IM_PATH = DATA_PATH / 'img'
-
-train_test_split = 0.01
-
-# <codecell>
 def HM(color=True, layers=None):
     if color:
         return HM_color(layers)
@@ -263,115 +246,3 @@ class HM_color(nn.Module):
         images = [model.reconstruct(layer) for model, layer in zip(self.rgb_models, color_layers)]
 
         return torch.stack(images, dim=-1)
-
-
-# <codecell>
-class CelebADataset(Dataset):
-    def __init__(self, im_path, total=TOTAL_IMAGES):
-        self.im_path = im_path
-        self.total = total
-
-    def __getitem__(self, idx):
-        name = str(idx + 1).zfill(6) + '.jpg'
-        target_path = self.im_path / name
-
-        im = plt.imread(target_path).reshape(-1, *IM_DIMS)
-        im = im.astype('float32') / 255
-        return torch.from_numpy(im)
-
-    def __len__(self):
-        return self.total
-
-
-def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
-    if type(im_path) == str:
-        im_path = Path(im_path)
-
-    ds = CelebADataset(im_path, total)
-    total = len(ds)
-
-    num_test = int(total * train_test_split)
-    num_train = total - num_test
-
-    test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
-    return train_ds, test_ds
-
-test_ds, train_ds = build_datasets(IM_PATH)
-
-# <codecell>
-hm = HM()
-ckpt = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
-hm.load_state_dict(ckpt['model_state_dict'])
-
-hm.eval()
-
-# <codecell>
-idx = 5
-samp_im = test_ds[idx].reshape(218, 178, 3)
-
-plt.imshow(samp_im)
-plt.show()
-
-# <codecell>
-idx = 15
-samp = test_ds[idx].unsqueeze(0)
-print(samp.shape)
-
-with torch.no_grad():
-    reco = hm.reconstruct(samp)
-
-    reco_im = torch.squeeze(reco).reshape(218, 178, 3)
-    samp_im = torch.squeeze(samp).reshape(218, 178, 3)
-
-plt.imshow(samp_im)
-plt.show()
-plt.imshow(reco_im)
-plt.show()
-
-# <codecell>
-# <codecell>
-samp = [test_ds[i] for i in range(5)]   # index slices won't work on ds
-samp = np.stack(samp)
-samp = torch.from_numpy(samp)
-
-with torch.no_grad():
-    reco = hm.reconstruct(samp)
-
-    reco_im = torch.squeeze(reco).reshape(-1, 218, 178, 3)
-    samp_im = torch.squeeze(samp).reshape(-1, 218, 178, 3)
-
-combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178, 3))
-combined[0::2] = samp_im
-combined[1::2] = reco_im
-
-fig = plt.figure(figsize=(10, 10))
-grid = ImageGrid(fig, 111,  # similar to subplot(111)
-                 nrows_ncols=(5, 2),
-                 axes_pad=0.1,
-                 )
-
-for ax, im in zip(grid, combined):
-    ax.imshow(im)
-
-fig.suptitle('HM reconstructions')
-# plt.show()
-plt.savefig('image/hm_reco.png')
-
-
-# <codecell>
-with torch.no_grad():
-    samp = hm.sample(25)
-    samp_im = torch.squeeze(samp).reshape(25, 218, 178, 3)
-
-fig = plt.figure(figsize=(10, 10))
-grid = ImageGrid(fig, 111,  # similar to subplot(111)
-                 nrows_ncols=(5, 5),  # creates 2x2 grid of axes
-                 axes_pad=0.1,  # pad between axes in inch.
-                 )
-
-for ax, im in zip(grid, samp_im):
-    ax.imshow(im)
-
-fig.suptitle('Sample faces drawn from HM')
-# plt.show()
-plt.savefig('hm_sample.png')

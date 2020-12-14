@@ -232,6 +232,34 @@ plt.imshow(reco_im)
 plt.show()
 
 # <codecell>
+samp = [test_ds[i] for i in range(5)]   # index slices won't work on ds
+samp = np.stack(samp)
+samp = torch.from_numpy(samp)
+
+with torch.no_grad():
+    reco = vae.reconstruct(samp)
+
+    reco_im = torch.squeeze(reco).reshape(-1, 218, 178, 3)
+    samp_im = torch.squeeze(samp).reshape(-1, 218, 178, 3)
+
+combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178, 3))
+combined[0::2] = samp_im
+combined[1::2] = reco_im
+
+fig = plt.figure(figsize=(10, 10))
+grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                 nrows_ncols=(5, 2),
+                 axes_pad=0.1,
+                 )
+
+for ax, im in zip(grid, combined):
+    ax.imshow(im)
+
+fig.suptitle('VAE reconstructions')
+# plt.show()
+plt.savefig('image/vae_reco.png')
+
+# <codecell>
 with torch.no_grad():
     samp = vae.sample(25)
     samp_im = torch.squeeze(samp).reshape(25, 218, 178, 3)
@@ -246,4 +274,5 @@ for ax, im in zip(grid, samp_im):
     ax.imshow(im)
 
 fig.suptitle('Sample faces drawn from VAE')
-plt.show()
+plt.savefig('vae_sample.png')
+# plt.show()

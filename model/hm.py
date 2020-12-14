@@ -1,5 +1,5 @@
 """
-A simple Helmholtz machine model for learning faces.
+A simple Helmholtz machine model for learning faces, using real-valued units.
 Adapated from: https://github.com/mrdrozdov/pytorch-machines/blob/master/helmholtz.py
 
 author: William Tong
@@ -20,33 +20,43 @@ def HM(color=True, layers=None):
         return HM_bw(layers)
 
 
+class SmoothUnit(nn.Module):
+    def __init__(self, in_feat: int, out_feat: int):
+        super(SmoothUnit, self).__init__()
+        self.linear = nn.Linear(in_feat, out_feat)
+        self.log_var = Parameter(torch.FloatTensor(out_feat))
+        self.log_var.data.uniform_(-1, 1)
+    
+    def forward(self, x):
+        mu = self.linear(x) 
+        logvar = self.log_var.expand(mu.shape[0], -1)
+        var = torch.exp(logvar)
+        return torch.normal(mu, var).detach(), (mu, logvar)
+
+
 class HM_bw(nn.Module):
 
-    def __init__(self, layers=None):
+    def __init__(self, layers):
         super(HM_bw, self).__init__()
-
-        if layers is None:
-            # self.layers = [116412, 16384, 2048, 256, 32]
-            self.layers = [784, 256, 64, 32]
-        else:
-            self.layers = layers
-
         self.num_layers = len(self.layers) - 1
 
         # recognition layers
         for ii, i in enumerate(range(self.num_layers)):
-            self.set_r(ii, nn.Linear(self.layers[i], self.layers[i+1]))
+            self.set_r(ii, SmoothUnit(self.layers[i], self.layers[i+1]))
 
         # generation layers
         for ii, i in enumerate(range(self.num_layers)[::-1]):
-            self.set_g(ii, nn.Linear(self.layers[i+1], self.layers[i]))
+            self.set_g(ii, SmoothUnit(self.layers[i+1], self.layers[i]))
 
         self.g_bias = Parameter(torch.FloatTensor(self.layers[-1]))
-
+        self.g_bias_logvar = Parameter(torch.FloatTensor(self.layers[-1]))
         self.reset_parameters()
+
 
     def reset_parameters(self):
         self.g_bias.data.uniform_(-1, 1)
+        self.g_bias_logvar.data.uniform_(-1, 1)
+
 
     def r(self, i):
         return getattr(self, "recognition_{}".format(i))
@@ -59,46 +69,48 @@ class HM_bw(nn.Module):
 
     def set_g(self, i, layer):
         setattr(self, "generation_{}".format(i), layer)
+    
 
-    def layer_output(self, x, training=True):
-        """
-        If training, treat x as bernoulli distribution and sample output,
-        otherwise simply round x, giving binary output in either case.
-        """
-        # if training:
-        #     out = torch.bernoulli(x).detach()
-        # else:
-        #     out = torch.round(x)
-        out = torch.bernoulli(x).detach()
-        return out
+    def cross_entropy(self, source_params, target_params):
+        mu_p, logvar_p = target_params
+        mu_q, logvar_q = source_params
+
+        ce = logvar_p \
+             + torch.exp(logvar_p - logvar_q) \
+             + (torch.pow(mu_p - mu_q, 2) / torch.exp(logvar_q))\
+             + logvar_q - logvar_p
+
+        batch_size = mu_p.shape(0)
+        return ce / batch_size
+
 
     def _run_wake_recognition(self, x):
         results = []
 
         # Run recognition layers, saving stochastic outputs.
         for i in range(self.num_layers):
-            x = self.r(i)(x)
-            x = torch.sigmoid(x)
-            x = self.layer_output(x, self.training)
-            results.append(x)
+            x, params = self.r(i)(x)
+            results.append((x, params))
 
         return results
 
-    def _run_wake_generation(self, x_original, recognition_outputs):
+
+    def _run_wake_generation(self, x_original, recognition_outputs, default_logvar=0):
         results = []
 
         # Run generative layers, predicting the input to each layer.
         for i in range(self.num_layers):
-            x_input = recognition_outputs[-(i+1)]
             if i == self.num_layers - 1:
-                x_target = x_original
+                logvar = torch.zeros(x_original.shape) + default_logvar
+                params_target = (x_original, default_logvar)
             else:
-                x_target = recognition_outputs[-(i+2)]
-            x = self.g(i)(x_input)
-            x = torch.sigmoid(x)
-            results.append(nn.BCELoss()(x, x_target))
+                _, params_target = recognition_outputs[-(i+2)]
+
+            _, params = recognition_outputs[-(i+1)]
+            results.append(cross_entropy(params, params_target))
 
         return results
+
 
     def run_wake(self, x):
         x_first = x
@@ -108,74 +120,76 @@ class HM_bw(nn.Module):
         recognition_outputs = self._run_wake_recognition(x)
 
         # Fit the bias to the final layer.
-        x_last = recognition_outputs[-1]
-        x = self.g_bias.view(1, -1).expand(batch_size, self.g_bias.size(0))
-        x = torch.sigmoid(x)
-        generation_bias_loss = nn.BCELoss()(x, x_last)
+        _, params = recognition_outputs[-1]
+        g_params = (self.g_bias.expand(batch_size, -1), self.g_bias_logvar.expand(batch_size, -1))
+        generation_bias_loss = self.cross_entropy(g_params, params)
 
         # Run Generation Net.
         generation_loss = self._run_wake_generation(x_first, recognition_outputs)
-
         return recognition_outputs, generation_bias_loss, generation_loss
 
-    def _run_sleep_recognition(self, x_initial, generative_outputs):
+
+    def _run_sleep_recognition(self, x_original, generative_outputs):
         results = []
 
         # Run recognition layers to predict fantasies.
+        # for i in range(self.num_layers):
+        #     x_input = generative_outputs[-(i+1)]
+        #     if i == self.num_layers - 1:
+        #         x_target = x_initial
+        #     else:
+        #         x_target = generative_outputs[-(i+2)]
+        #     x = self.r(i)(x_input)
+        #     x = torch.sigmoid(x)
+        #     results.append(nn.BCELoss()(x, x_target))
+
         for i in range(self.num_layers):
-            x_input = generative_outputs[-(i+1)]
             if i == self.num_layers - 1:
-                x_target = x_initial
+                logvar = torch.zeros(x_original.shape) + default_logvar # TODO: make default_logvar a param?
+                params_target = (x_original, default_logvar)
             else:
-                x_target = generative_outputs[-(i+2)]
-            x = self.r(i)(x_input)
-            x = torch.sigmoid(x)
-            results.append(nn.BCELoss()(x, x_target))
+                _, params_target = recognition_outputs[-(i+2)]
+
+            _, params = recognition_outputs[-(i+1)]
+            results.append(cross_entropy(params, params_target))
 
         return results
 
-    def _run_sleep_generation(self, x_initial):
+
+    def _run_sleep_generation(self, x):
         results = []
 
         # Fantasize each layers output.
         for i in range(self.num_layers):
-            if i == 0:
-                x = self.g(i)(x_initial)
-            else:
-                x = self.g(i)(x)
-            x = torch.sigmoid(x)
-            x = self.layer_output(x, self.training)
+            x = self.g(i)(x)
             results.append(x)
 
         return results
 
+
     def run_sleep(self, x):
-        batch_size = x.size(0)
+        batch_size = x.shape(0)
         recognition_loss = []
 
-        # We do not use the input `x`, rather we use the bias.
         bias = self.g_bias.view(1, -1)
-        x = torch.sigmoid(bias)
-        x = x.expand(batch_size, self.g_bias.size(0))
-        x = self.layer_output(x, self.training)
-        generation_bias_output = x
+        bias = bias.expand(batch_size, self.g_bias.size(0))
+        var = torch.exp(self.g_bias_logvar).view(1, -1)
+        var = var.expand(batch_size, self.g_bias_logvar.size(0))
+        
+        generation_bias_output = torch.normal(bias, var).detach()
 
-        # Fantasize each layers output.
         generative_outputs = self._run_sleep_generation(generation_bias_output)
-
-        # Run recognition layers to predict fantasies.
         recognition_loss = self._run_sleep_recognition(generation_bias_output, generative_outputs)
-
         return recognition_loss, generation_bias_output, generative_outputs
         
-    def forward(self, x):
-        x = torch.round(x)
 
+    def forward(self, x):
         wake_out = self.run_wake(x)
         sleep_out = self.run_sleep(x)
 
         return wake_out + sleep_out
     
+
     def loss_function(self, 
                       rec_out, gen_bias_loss, gen_loss,   # awake forward()
                       rec_loss, gen_bias_out, gen_out):   # sleep forward()
@@ -190,6 +204,7 @@ class HM_bw(nn.Module):
         fantasy = self.run_sleep(fake_x)
         return fantasy[2][-1]
 
+    # TODO: fix to actually reco, not sample again
     def reconstruct(self, x):
         results = self.forward(x)
         return results[5][-1]

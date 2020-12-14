@@ -16,37 +16,28 @@ from scipy.io import loadmat
 import torch
 from torch import nn
 from torch.autograd import Variable
-from torch.nn import ParameterList, functional as F
+from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader, Dataset, random_split
 
-IM_DIMS = (178, 218)
-TOTAL_IMAGES = 202599
-MODEL_PATH = Path('epoch_40.pt')
-DATA_PATH = Path('../data/')
-IM_PATH = DATA_PATH / 'img'
+# IM_DIMS = (178, 218)
+# TOTAL_IMAGES = 202599
+MODEL_PATH = Path('../save/hm/final.pt')
+# DATA_PATH = Path('../data/')
+# IM_PATH = DATA_PATH / 'img'
+IM_PATH = '../mnist.mat'
 
 train_test_split = 0.01
 
 # <codecell>
-def HM(color=True, layers=None):
-    if color:
-        return HM_color(layers)
-    else:
-        return HM_bw(layers)
+class HM(nn.Module):
 
+    def __init__(self):
+        super(HM, self).__init__()
 
-class HM_bw(nn.Module):
-
-    def __init__(self, layers=None):
-        super(HM_bw, self).__init__()
-
-        if layers is None:
-            # self.layers = [116412, 16384, 2048, 256, 32]
-            self.layers = [784, 256, 64, 32]
-        else:
-            self.layers = layers
-
+        self._awake = True
+        # self.layers = [116412, 16384, 2048, 256, 32]
+        self.layers = [784, 256, 64, 32]
         self.num_layers = len(self.layers) - 1
 
         # recognition layers
@@ -76,6 +67,12 @@ class HM_bw(nn.Module):
     def set_g(self, i, layer):
         setattr(self, "generation_{}".format(i), layer)
 
+    def wake(self):
+        self._awake = True
+
+    def sleep(self):
+        self._awake = False
+
     def layer_output(self, x, training=True):
         """
         If training, treat x as bernoulli distribution and sample output,
@@ -94,7 +91,7 @@ class HM_bw(nn.Module):
         # Run recognition layers, saving stochastic outputs.
         for i in range(self.num_layers):
             x = self.r(i)(x)
-            x = torch.sigmoid(x)
+            x = F.sigmoid(x)
             x = self.layer_output(x, self.training)
             results.append(x)
 
@@ -111,7 +108,7 @@ class HM_bw(nn.Module):
             else:
                 x_target = recognition_outputs[-(i+2)]
             x = self.g(i)(x_input)
-            x = torch.sigmoid(x)
+            x = F.sigmoid(x)
             results.append(nn.BCELoss()(x, x_target))
 
         return results
@@ -126,7 +123,7 @@ class HM_bw(nn.Module):
         # Fit the bias to the final layer.
         x_last = recognition_outputs[-1]
         x = self.g_bias.view(1, -1).expand(batch_size, self.g_bias.size(0))
-        x = torch.sigmoid(x)
+        x = F.sigmoid(x)
         generation_bias_loss = nn.BCELoss()(x, x_last)
 
         # Run Generation Net.
@@ -145,7 +142,7 @@ class HM_bw(nn.Module):
             else:
                 x_target = generative_outputs[-(i+2)]
             x = self.r(i)(x_input)
-            x = torch.sigmoid(x)
+            x = F.sigmoid(x)
             results.append(nn.BCELoss()(x, x_target))
 
         return results
@@ -159,25 +156,24 @@ class HM_bw(nn.Module):
                 x = self.g(i)(x_initial)
             else:
                 x = self.g(i)(x)
-            x = torch.sigmoid(x)
+            x = F.sigmoid(x)
             x = self.layer_output(x, self.training)
             results.append(x)
 
         return results
 
-    def run_sleep(self, x, sample=None):
+    def run_sleep(self, x):
         batch_size = x.size(0)
         recognition_loss = []
 
         # We do not use the input `x`, rather we use the bias.
-        if sample is not None:
-            generation_bias_output = sample
-        else:
-            bias = self.g_bias.view(1, -1)
-            x = torch.sigmoid(bias)
-            x = x.expand(batch_size, self.g_bias.size(0))
-            x = self.layer_output(x, self.training)
-            generation_bias_output = x
+        bias = self.g_bias.view(1, -1)
+        print('BIAS', bias)
+        x = F.sigmoid(bias)
+        print('BIAS_SIG', x)
+        x = x.expand(batch_size, self.g_bias.size(0))
+        x = self.layer_output(x, self.training)
+        generation_bias_output = x
 
         # Fantasize each layers output.
         generative_outputs = self._run_sleep_generation(generation_bias_output)
@@ -190,7 +186,10 @@ class HM_bw(nn.Module):
     def forward(self, x):
         x = torch.round(x)
 
+        self.wake()
         wake_out = self.run_wake(x)
+
+        self.sleep()
         sleep_out = self.run_sleep(x)
 
         return wake_out + sleep_out
@@ -202,92 +201,60 @@ class HM_bw(nn.Module):
         for loss in (gen_loss + rec_loss):
             total_loss += loss
         
-        return total_loss
-    
+        # TODO: quick fix for accomdate vae
+        return {'loss': total_loss, 'kld': 0, 'mse': 0}
+
     def sample(self, num_samples):
         fake_x = torch.zeros(num_samples)
         fantasy = self.run_sleep(fake_x)
         return fantasy[2][-1]
 
     def reconstruct(self, x):
-        outputs = self.run_wake(x)
-        sample = outputs[0][-1]
-        results = self.run_sleep(x, sample)
-        return results[2][-1]
-
-
-class HM_color(nn.Module):
-    def __init__(self, layers=None):
-        super(HM_color, self).__init__()
-
-        if layers is None:
-            layers = [38804, 2048, 128, 32]
-
-        self.rgb_models = [
-            HM_bw(layers),
-            HM_bw(layers),
-            HM_bw(layers),
-        ]
-
-        self.params = ParameterList()
-        for model in self.rgb_models:
-            self.params.extend(model.parameters())
-    
-
-    def forward(self, x):
-        """
-        x must have shape N x C x H x W
-        """
-        x = torch.round(x)
-        flat_dim = x.shape[-1] * x.shape[-2]
-        color_layers = [x[:,i].reshape(-1, flat_dim) for i in range(3)]
-        outputs = [model.forward(layer) for model, layer in zip(self.rgb_models, color_layers)]
-        return outputs
-
-    
-    def loss_function(self, *fwd_outputs):
-        losses = [model.loss_function(*output) for model, output in zip(self.rgb_models, fwd_outputs)]
-        return sum(losses)
-
-    
-    def sample(self, num_samples):
-        fake_x = torch.zeros(num_samples)
-        fantasies = [model.run_sleep(fake_x)[2][-1] for model in self.rgb_models]
-        return torch.stack(fantasies, dim=-1)
-
-
-    def reconstruct(self, x):
-        x = torch.round(x)
-        flat_dim = x.shape[-1] * x.shape[-2]
-        color_layers = [x[:,i].reshape(-1, flat_dim) for i in range(3)]
-        images = [model.reconstruct(layer) for model, layer in zip(self.rgb_models, color_layers)]
-
-        return torch.stack(images, dim=-1)
+        results = self.forward(x)
+        return results[5][-1]
 
 
 # <codecell>
-class CelebADataset(Dataset):
-    def __init__(self, im_path, total=TOTAL_IMAGES):
-        self.im_path = im_path
-        self.total = total
+
+# # TODO: unify code better
+# def _idx_to_im(im_idx):
+#     name = str(im_idx + 1).zfill(6) + '.jpg'
+#     im_path = IM_PATH / name
+
+#     im = plt.imread(im_path).reshape(-1, *IM_DIMS)
+#     im = im.astype('double') / 255
+#     return torch.from_numpy(im)
+
+
+# class CelebADataset(Dataset):
+#     def __getitem__(self, idx):
+#         return _idx_to_im(idx)
+
+#     def __len__(self):
+#         return TOTAL_IMAGES
+
+# num_test = int(TOTAL_IMAGES * train_test_split)
+# num_train = TOTAL_IMAGES - num_test
+
+class MNIST(Dataset):
+    def __init__(self, mnist_path):
+        mnist = loadmat(mnist_path)
+        first = np.double(mnist['trainX']) / 255
+        second = np.double(mnist['testX']) / 255
+        self.data = np.concatenate((first, second))
 
     def __getitem__(self, idx):
-        name = str(idx + 1).zfill(6) + '.jpg'
-        target_path = self.im_path / name
-
-        im = plt.imread(target_path).reshape(-1, *IM_DIMS)
-        im = im.astype('float32') / 255
-        return torch.from_numpy(im)
+        return torch.from_numpy(self.data[idx])
 
     def __len__(self):
-        return self.total
+        return self.data.shape[0]
 
 
-def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
+def build_datasets(im_path: Path, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
     if type(im_path) == str:
         im_path = Path(im_path)
 
-    ds = CelebADataset(im_path, total)
+    ds = MNIST(im_path)
     total = len(ds)
 
     num_test = int(total * train_test_split)
@@ -299,18 +266,18 @@ def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, see
 test_ds, train_ds = build_datasets(IM_PATH)
 
 # <codecell>
-hm = HM()
+hm = HM().double()
 ckpt = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
 hm.load_state_dict(ckpt['model_state_dict'])
 
 hm.eval()
 
 # <codecell>
-idx = 5
-samp_im = test_ds[idx].reshape(218, 178, 3)
+# idx = 5
+# samp_im = test_ds[idx].reshape(28, 28)
 
-plt.imshow(samp_im)
-plt.show()
+# plt.imshow(samp_im)
+# plt.show()
 
 # <codecell>
 idx = 15
@@ -320,8 +287,8 @@ print(samp.shape)
 with torch.no_grad():
     reco = hm.reconstruct(samp)
 
-    reco_im = torch.squeeze(reco).reshape(218, 178, 3)
-    samp_im = torch.squeeze(samp).reshape(218, 178, 3)
+    reco_im = torch.squeeze(reco).reshape(28, 28)
+    samp_im = torch.squeeze(samp).reshape(28, 28)
 
 plt.imshow(samp_im)
 plt.show()
@@ -329,39 +296,9 @@ plt.imshow(reco_im)
 plt.show()
 
 # <codecell>
-# <codecell>
-samp = [test_ds[i] for i in range(5)]   # index slices won't work on ds
-samp = np.stack(samp)
-samp = torch.from_numpy(samp)
-
-with torch.no_grad():
-    reco = hm.reconstruct(samp)
-
-    reco_im = torch.squeeze(reco).reshape(-1, 218, 178, 3)
-    samp_im = torch.squeeze(samp).reshape(-1, 218, 178, 3)
-
-combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178, 3))
-combined[0::2] = samp_im
-combined[1::2] = reco_im
-
-fig = plt.figure(figsize=(10, 10))
-grid = ImageGrid(fig, 111,  # similar to subplot(111)
-                 nrows_ncols=(5, 2),
-                 axes_pad=0.1,
-                 )
-
-for ax, im in zip(grid, combined):
-    ax.imshow(im)
-
-fig.suptitle('HM reconstructions')
-# plt.show()
-plt.savefig('image/hm_reco.png')
-
-
-# <codecell>
 with torch.no_grad():
     samp = hm.sample(25)
-    samp_im = torch.squeeze(samp).reshape(25, 218, 178, 3)
+    samp_im = torch.squeeze(samp).reshape(25, 28, 28)
 
 fig = plt.figure(figsize=(10, 10))
 grid = ImageGrid(fig, 111,  # similar to subplot(111)
@@ -372,6 +309,7 @@ grid = ImageGrid(fig, 111,  # similar to subplot(111)
 for ax, im in zip(grid, samp_im):
     ax.imshow(im)
 
-fig.suptitle('Sample faces drawn from HM')
-# plt.show()
-plt.savefig('hm_sample.png')
+fig.suptitle('Sample faces drawn from VAE')
+plt.show()
+
+# TODO: debug same image problem

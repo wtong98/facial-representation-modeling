@@ -21,7 +21,8 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 from model.hm import HM
 from model.vae import VAE
-from dataset.celeba import build_datasets
+# from dataset.celeba import build_datasets
+from dataset.mnist import build_datasets
 
 
 def _build_parser():
@@ -43,15 +44,35 @@ def _build_parser():
     return parser
 
 # TODO: switch back when not MNIST
+# TODO: generalize for flip-flop wake sleep
 def _eval(model, test_data, device, n_samples=100):
     size = len(test_data)
     idxs = np.random.choice(np.arange(size), n_samples, replace=False)
     x = torch.stack([test_data[i] for i in idxs]).to(device)
 
+    loss = 0
     with torch.no_grad():
         reco_params = model(x)
-        loss = model.loss_function(*reco_params)
+        loss += model.loss_function(*reco_params)
+        reco2 = model(x)
+        loss += model.loss_function(*reco2)
+
+    print('GEN_LOSS', reco2[2])
+    print('REC_LOSS', reco_params[3])
+
+    # with torch.no_grad():
+    #     reco_params = model(x)
+    #     loss = model.loss_function(*reco_params)
     
+    # print('GEN_LOSS', reco_params[2])
+    # print('REC_LOSS', reco_params[3])
+    # print('BIAS_MU', model.g_bias)
+    # print('BIAS_LOGVAR', model.g_bias_logvar)
+    # print('MU', model.g(2))
+    with torch.no_grad():
+        print('MU', [torch.sum(model.g(i).mu) for i in range(model.num_layers)])
+        print('LOGVAR', [torch.sum(model.g(i).log_var) for i in range(model.num_layers)])
+
     return loss
 
 
@@ -97,7 +118,7 @@ def main():
                             pin_memory=torch.cuda.is_available())
         total_batches = len(train_ds) // args.batch_size
 
-        log_every = total_batches // 4
+        log_every = total_batches // 4 + 1
         save_every = 1   # hardcoded for now
         for i, x in enumerate(loader):
             x = x.to(device)
@@ -134,8 +155,7 @@ def main():
     loss = _eval(model, test_ds, device)
     model.train()
 
-    print_params = (loss['loss'], loss['mse'], loss['kld'])
-    logging.info('final loss: %f, mse: %f, kld: %f' % print_params)
+    logging.info('final loss: %f' % loss)
     losses.append({'iter': 0, 'epoch': e+1, 'loss': loss})
 
     with open(save_path / 'loss.pk', 'wb') as pkf:

@@ -152,7 +152,6 @@ class HM_bw(nn.Module):
         batch_size = x.size(0)
         recognition_loss = []
 
-        # We do not use the input `x`, rather we use the bias.
         if sample is not None:
             generation_bias_output = sample
         else:

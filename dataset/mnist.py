@@ -20,8 +20,8 @@ from torch.utils.data import DataLoader, Dataset, random_split
 class MNIST(Dataset):
     def __init__(self, mnist_path):
         mnist = loadmat(mnist_path)
-        first = np.double(mnist['trainX']) / 255
-        second = np.double(mnist['testX']) / 255
+        first = np.float32(mnist['trainX']) / 255
+        second = np.float32(mnist['testX']) / 255
         self.data = np.concatenate((first, second))
 
     def __getitem__(self, idx):

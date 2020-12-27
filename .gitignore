@@ -3,6 +3,7 @@ __pycache__/
 .vscode/
 *.png
 *.pt
+*.pickle
 
 face/
 data/

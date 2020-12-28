@@ -25,8 +25,8 @@ class HM_bw(nn.Module):
         super(HM_bw, self).__init__()
 
         if layers is None:
-            # self.layers = [116412, 16384, 2048, 256, 32]
-            self.layers = [784, 256, 64, 32]
+            # self.layers = [784, 256, 64, 32]
+            self.layers = [38804, 2048, 128, 32]
         else:
             self.layers = layers
 

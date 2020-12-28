@@ -19,9 +19,11 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset, random_split
 
-from model.hm import HM
+# from model.hm import HM
+from model.hm_binary import HM
 from model.vae import VAE
-from dataset.celeba import build_datasets
+# from dataset.celeba import build_datasets
+from dataset.celeba_single import build_datasets
 # from dataset.mnist import build_datasets
 
 
@@ -43,7 +45,6 @@ def _build_parser():
 
     return parser
 
-# TODO: switch back when not MNIST
 # TODO: generalize for flip-flop wake sleep
 def _eval(model, test_data, device, n_samples=100):
     size = len(test_data)
@@ -92,7 +93,7 @@ def main():
         model = VAE()
         save_path = save_path / 'vae'
     elif args.model == 'hm':
-        model = HM()  # TODO: pass in args.color
+        model = HM(color=False)  # TODO: pass in args.color
         save_path = save_path / 'hm'
     else:
         logging.critical('model unimplemented: %s' % args.model)

@@ -15,10 +15,10 @@ from torch.nn.parameter import Parameter
 
 
 def HM(color=True, layers=None):
-    # if color:
-    #     return HM_color(layers)
-    # else:
-    #     return HM_bw(layers)
+    if color:
+        return HM_color(layers)
+    else:
+        return HM_bw(layers)
     return HM_bw(layers)
 
 
@@ -68,7 +68,7 @@ class HM_bw(nn.Module):
     def reset_parameters(self):
         self.g_bias.data.uniform_(-1, 1)
         # self.g_bias_logvar.data.uniform_(-1, 1)
-        self.g_bias_logvar.data.fill_(-3)
+        self.g_bias_logvar.data.fill_(0)
 
 
     def r(self, i):
@@ -296,47 +296,46 @@ class HM_bw(nn.Module):
         return results[2][-1][0]
 
 
-# class HM_color(nn.Module):
-#     def __init__(self, layers=None):
-#         super(HM_color, self).__init__()
+class HM_color(nn.Module):
+    def __init__(self, layers=None):
+        super(HM_color, self).__init__()
 
-#         if layers is None:
-#             layers = [38804, 2048, 128, 32]
+        if layers is None:
+            layers = [38804, 2048, 128, 32]
 
-#         self.rgb_models = [
-#             HM_bw(layers),
-#             HM_bw(layers),
-#             HM_bw(layers),
-#         ]
+        self.rgb_models = [
+            HM_bw(layers),
+            HM_bw(layers),
+            HM_bw(layers),
+        ]
 
-#         self.params = ParameterList()
-#         for model in self.rgb_models:
-#             self.params.extend(model.parameters())
+        self.params = ParameterList()
+        for model in self.rgb_models:
+            self.params.extend(model.parameters())
     
 
-#     def forward(self, x):
-#         """
-#         x must have shape N x C x H x W
-#         """
-#         x = torch.round(x)
-#         flat_dim = x.shape[-1] * x.shape[-2]
-#         color_layers = [x[:,i].reshape(-1, flat_dim) for i in range(3)]
-#         outputs = [model.forward(layer) for model, layer in zip(self.rgb_models, color_layers)]
-#         return outputs
+    def forward(self, x):
+        """
+        x must have shape N x C x H x W
+        """
+        flat_dim = x.shape[-1] * x.shape[-2]
+        color_layers = [x[:,i].reshape(-1, flat_dim) for i in range(3)]
+        outputs = [model.forward(layer) for model, layer in zip(self.rgb_models, color_layers)]
+        return outputs
 
     
-#     def loss_function(self, *fwd_outputs):
-#         losses = [model.loss_function(*output) for model, output in zip(self.rgb_models, fwd_outputs)]
-#         return sum(losses)
+    def loss_function(self, *fwd_outputs):
+        losses = [model.loss_function(*output) for model, output in zip(self.rgb_models, fwd_outputs)]
+        return sum(losses)
 
     
-#     def sample(self, num_samples):
-#         fake_x = torch.zeros(num_samples)
-#         fantasies = [model.run_sleep(fake_x)[2][-1] for model in self.rgb_models]
-#         return torch.stack(fantasies, dim=-1)
+    def sample(self, num_samples):
+        fake_x = torch.zeros(num_samples)
+        fantasies = [model.run_sleep(fake_x)[2][-1] for model in self.rgb_models]
+        return torch.stack(fantasies, dim=-1)
 
 
-#     def reconstruct(self, x):
-#         outputs = self.forward(x)
-#         images = [result[5][-1] for result in outputs]
-#         return torch.stack(images, dim=-1)
+    def reconstruct(self, x):
+        outputs = self.forward(x)
+        images = [result[5][-1] for result in outputs]
+        return torch.stack(images, dim=-1)

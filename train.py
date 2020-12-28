@@ -21,8 +21,8 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 from model.hm import HM
 from model.vae import VAE
-# from dataset.celeba import build_datasets
-from dataset.mnist import build_datasets
+from dataset.celeba import build_datasets
+# from dataset.mnist import build_datasets
 
 
 def _build_parser():
@@ -57,8 +57,8 @@ def _eval(model, test_data, device, n_samples=100):
         reco2 = model(x)
         loss += model.loss_function(*reco2)
 
-    print('GEN_LOSS', reco2[2])
-    print('REC_LOSS', reco_params[3])
+    # print('GEN_LOSS', reco2[2])
+    # print('REC_LOSS', reco_params[3])
 
     # with torch.no_grad():
     #     reco_params = model(x)
@@ -69,9 +69,9 @@ def _eval(model, test_data, device, n_samples=100):
     # print('BIAS_MU', model.g_bias)
     # print('BIAS_LOGVAR', model.g_bias_logvar)
     # print('MU', model.g(2))
-    with torch.no_grad():
-        print('MU', [torch.sum(model.g(i).mu) for i in range(model.num_layers)])
-        print('LOGVAR', [torch.sum(model.g(i).log_var) for i in range(model.num_layers)])
+    # with torch.no_grad():
+    #     print('MU', [torch.sum(model.g(i).mu) for i in range(model.num_layers)])
+    #     print('LOGVAR', [torch.sum(model.g(i).log_var) for i in range(model.num_layers)])
 
     return loss
 

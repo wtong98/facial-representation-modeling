@@ -5,6 +5,8 @@ Ethnicity labels appear to be
 0: White
 1: Black
 2: Asian
+3: Indian
+4: Other
 
 Sex labels appear to be
 0: Male
@@ -39,10 +41,11 @@ class UTKDataset(Dataset):
         im = im.reshape(-1, *IM_DIMS)
 
         labels = target_path.stem.split('_')
+
         features = {
             'age': labels[0],
             'gender': labels[1],
-            'ethnicity': labels[2]
+            'ethnicity': labels[2] if len(labels) == 4 else 4
         }
 
         return torch.from_numpy(im), features

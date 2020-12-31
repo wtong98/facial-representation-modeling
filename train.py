@@ -19,8 +19,8 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset, random_split
 
-# from model.hm import HM
-from model.hm_binary import HM
+from model.hm import HM
+# from model.hm_binary import HM
 from model.vae import VAE
 # from dataset.celeba import build_datasets
 from dataset.celeba_single import build_datasets

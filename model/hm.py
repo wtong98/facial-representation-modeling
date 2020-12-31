@@ -28,7 +28,7 @@ class SmoothUnit(nn.Module):
         self.linear = nn.Linear(in_feat, out_feat)
         self.log_var = Parameter(torch.FloatTensor(out_feat))
         # self.log_var.data.uniform_(-1, 1)
-        self.log_var.data.fill_(-3)
+        self.log_var.data.fill_(-4)
 
         self.mu = None # for debugging
     
@@ -45,7 +45,8 @@ class HM_bw(nn.Module):
     def __init__(self, layers):
         super(HM_bw, self).__init__()
         if layers == None:
-            self.layers = [784, 256, 64, 32]
+            # self.layers = [784, 256, 64, 32]
+            self.layers = [38804, 2048, 128, 32]
         else:
             self.layers = layers
 
@@ -68,7 +69,7 @@ class HM_bw(nn.Module):
     def reset_parameters(self):
         self.g_bias.data.uniform_(-1, 1)
         # self.g_bias_logvar.data.uniform_(-1, 1)
-        self.g_bias_logvar.data.fill_(0)
+        self.g_bias_logvar.data.fill_(-4)
 
 
     def r(self, i):

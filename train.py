@@ -19,11 +19,11 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset, random_split
 
-from model.hm import HM
-# from model.hm_binary import HM
+# from model.hm import HM
+from model.hm_binary import HM
 from model.vae import VAE
-# from dataset.celeba import build_datasets
-from dataset.celeba_single import build_datasets
+from dataset.celeba import build_datasets
+# from dataset.celeba_single import build_datasets
 # from dataset.mnist import build_datasets
 
 
@@ -35,7 +35,9 @@ def _build_parser():
         help='Path to model save directory. Default=save/')
     parser.add_argument('--model', type=str, choices=['vae', 'hm'], default='hm',
         help='Type of model to train, either vae for variational autoencoder or hm for helmholtz machine. ' +\
-             'Defaults to hm')
+             'Defaults to hm'),
+    parser.add_argument('--color', action='store_true',
+        help='Specify this toggle to use the full-color HM model'),
     parser.add_argument('--epochs', type=int, default=20,
         help='Number of epochs to train for. Defaults to 20')
     parser.add_argument('--batch_size', type=int, default=32,
@@ -93,7 +95,7 @@ def main():
         model = VAE()
         save_path = save_path / 'vae'
     elif args.model == 'hm':
-        model = HM(color=False)  # TODO: pass in args.color
+        model = HM(args.color)  # TODO: pass in args.color
         save_path = save_path / 'hm'
     else:
         logging.critical('model unimplemented: %s' % args.model)

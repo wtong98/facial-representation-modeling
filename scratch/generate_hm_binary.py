@@ -20,9 +20,9 @@ from torch.nn import ParameterList, functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader, Dataset, random_split
 
-IM_DIMS = (178, 218)
+IM_DIMS = (218, 178)
 TOTAL_IMAGES = 202599
-MODEL_PATH = Path('../save/hm/epoch_43.pt')
+MODEL_PATH = Path('../save/hm_bin/epoch_36.pt')
 DATA_PATH = Path('../data/')
 # IM_PATH = DATA_PATH / 'img'
 IM_PATH = Path('../data/img')
@@ -267,35 +267,36 @@ class HM_color(nn.Module):
 
 
 # <codecell>
-# class CelebADataset(Dataset):
-#     def __init__(self, im_path, total=TOTAL_IMAGES):
-#         self.im_path = im_path
-#         self.total = total
+class CelebADataset(Dataset):
+    def __init__(self, im_path, total=TOTAL_IMAGES):
+        self.im_path = im_path
+        self.total = total
 
-#     def __getitem__(self, idx):
-#         name = str(idx + 1).zfill(6) + '.jpg'
-#         target_path = self.im_path / name
+    def __getitem__(self, idx):
+        name = str(idx + 1).zfill(6) + '.jpg'
+        target_path = self.im_path / name
 
-#         im = plt.imread(target_path).reshape(-1, *IM_DIMS)
-#         im = im.astype('float32') / 255
-#         return torch.from_numpy(im)
+        # im = plt.imread(target_path).reshape(-1, *IM_DIMS)
+        im = plt.imread(target_path).transpose((2, 0, 1))
+        im = im.astype('float32') / 255
+        return torch.from_numpy(im)
 
-#     def __len__(self):
-#         return self.total
+    def __len__(self):
+        return self.total
 
 
-# def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
-#     if type(im_path) == str:
-#         im_path = Path(im_path)
+def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
+    if type(im_path) == str:
+        im_path = Path(im_path)
 
-#     ds = CelebADataset(im_path, total)
-#     total = len(ds)
+    ds = CelebADataset(im_path, total)
+    total = len(ds)
 
-#     num_test = int(total * train_test_split)
-#     num_train = total - num_test
+    num_test = int(total * train_test_split)
+    num_train = total - num_test
 
-#     test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
-#     return train_ds, test_ds
+    test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
+    return train_ds, test_ds
 
 # class MNIST(Dataset):
 #     def __init__(self, mnist_path):
@@ -324,43 +325,43 @@ class HM_color(nn.Module):
 #     test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
 #     return train_ds, test_ds
 
-class CelebASingleDataset(Dataset):
-    def __init__(self, im_path, channel_idx=0, total=TOTAL_IMAGES):
-        self.im_path = im_path
-        self.total = total
-        self.idx = channel_idx
+# class CelebASingleDataset(Dataset):
+#     def __init__(self, im_path, channel_idx=0, total=TOTAL_IMAGES):
+#         self.im_path = im_path
+#         self.total = total
+#         self.idx = channel_idx
 
-    def __getitem__(self, idx):
-        name = str(idx + 1).zfill(6) + '.jpg'
-        target_path = self.im_path / name
+#     def __getitem__(self, idx):
+#         name = str(idx + 1).zfill(6) + '.jpg'
+#         target_path = self.im_path / name
 
-        # im = plt.imread(target_path).reshape(-1, *IM_DIMS)
-        im = plt.imread(target_path).transpose((2, 0, 1))
-        im = im.astype('float32') / 255
-        return torch.from_numpy(im[self.idx].flatten())
-        # return torch.from_numpy(im)
+#         # im = plt.imread(target_path).reshape(-1, *IM_DIMS)
+#         im = plt.imread(target_path).transpose((2, 0, 1))
+#         im = im.astype('float32') / 255
+#         return torch.from_numpy(im[self.idx].flatten())
+#         # return torch.from_numpy(im)
 
-    def __len__(self):
-        return self.total
+#     def __len__(self):
+#         return self.total
 
-def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
-    if type(im_path) == str:
-        im_path = Path(im_path)
+# def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
+#     if type(im_path) == str:
+#         im_path = Path(im_path)
 
-    ds = CelebASingleDataset(im_path, total=total)
-    total = len(ds)
+#     ds = CelebASingleDataset(im_path, total=total)
+#     total = len(ds)
 
-    num_test = int(total * train_test_split)
-    num_train = total - num_test
+#     num_test = int(total * train_test_split)
+#     num_train = total - num_test
 
-    test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
-    return train_ds, test_ds
+#     test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
+#     return train_ds, test_ds
 
 
 test_ds, train_ds = build_datasets(IM_PATH)
 
 # <codecell>
-hm = HM(color=False)
+hm = HM(color=True)
 ckpt = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
 hm.load_state_dict(ckpt['model_state_dict'])
 
@@ -381,15 +382,17 @@ print(samp.shape)
 with torch.no_grad():
     reco = hm.reconstruct(samp)
 
-    reco_im = torch.squeeze(reco).reshape(218, 178)
-    samp_im = torch.squeeze(samp).reshape(218, 178)
+    print(torch.squeeze(reco).shape)
+    print(torch.squeeze(samp).shape)
+
+    reco_im = torch.squeeze(reco).reshape(218, 178, 3)
+    samp_im = torch.squeeze(samp).permute(1, 2, 0)
 
 plt.imshow(samp_im)
 plt.show()
 plt.imshow(reco_im)
 plt.show()
 
-# <codecell>
 # <codecell>
 samp = [test_ds[i] for i in range(5)]   # index slices won't work on ds
 samp = np.stack(samp)
@@ -398,10 +401,10 @@ samp = torch.from_numpy(samp)
 with torch.no_grad():
     reco = hm.reconstruct(samp)
 
-    reco_im = torch.squeeze(reco).reshape(-1, 218, 178)
-    samp_im = torch.squeeze(samp).reshape(-1, 218, 178)
+    reco_im = torch.squeeze(reco).reshape(-1, 218, 178, 3)
+    samp_im = torch.squeeze(samp).permute(0, 2, 3, 1)
 
-combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178))
+combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178, 3))
 combined[0::2] = samp_im
 combined[1::2] = reco_im
 
@@ -416,13 +419,13 @@ for ax, im in zip(grid, combined):
 
 fig.suptitle('HM reconstructions')
 # plt.show()
-plt.savefig('image/hm_reco.png')
+plt.savefig('image/hm_bin_full_reco.png')
 
 
 # <codecell>
 with torch.no_grad():
     samp = hm.sample(25)
-    samp_im = torch.squeeze(samp).reshape(25, 218, 178)
+    samp_im = torch.squeeze(samp).reshape(25, 218, 178, 3)
 
 fig = plt.figure(figsize=(10, 10))
 grid = ImageGrid(fig, 111,  # similar to subplot(111)
@@ -435,4 +438,4 @@ for ax, im in zip(grid, samp_im):
 
 fig.suptitle('Sample faces drawn from HM')
 # plt.show()
-plt.savefig('image/hm_sample.png')
+plt.savefig('image/hm_bin_full_sample.png')

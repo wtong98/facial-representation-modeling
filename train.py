@@ -53,12 +53,13 @@ def _eval(model, test_data, device, n_samples=100):
     idxs = np.random.choice(np.arange(size), n_samples, replace=False)
     x = torch.stack([test_data[i] for i in idxs]).to(device)
 
-    loss = 0
-    with torch.no_grad():
-        reco_params = model(x)
-        loss += model.loss_function(*reco_params)
-        reco2 = model(x)
-        loss += model.loss_function(*reco2)
+    reco_params = model(x)
+    loss = model.loss_function(*reco_params)
+    # with torch.no_grad():
+    #     reco_params = model(x)
+    #     loss += model.loss_function(*reco_params)
+    #     reco2 = model(x)
+    #     loss += model.loss_function(*reco2)
 
     # print('GEN_LOSS', reco2[2])
     # print('REC_LOSS', reco_params[3])
@@ -140,10 +141,10 @@ def main():
                 model.train()
 
                 # TODO: generalize printing
-                # print_params = (i+1, total_batches, loss['loss'], loss['mse'], loss['kld'])
-                # logging.info('[batch %d/%d] loss: %f, mse: %f, kld: %f' % print_params)
-                print_params = (i+1, total_batches, loss)
-                logging.info('[batch %d/%d] loss: %f' % print_params)
+                print_params = (i+1, total_batches, loss['loss'], loss['mse'], loss['kld'])
+                logging.info('[batch %d/%d] loss: %f, mse: %f, kld: %f' % print_params)
+                # print_params = (i+1, total_batches, loss)
+                # logging.info('[batch %d/%d] loss: %f' % print_params)
                 losses.append({'iter': i, 'epoch': e, 'loss': loss})
             
         if e % save_every == 0:
@@ -158,7 +159,7 @@ def main():
     loss = _eval(model, test_ds, device)
     model.train()
 
-    logging.info('final loss: %f' % loss)
+    logging.info('final loss: %s' % loss)
     losses.append({'iter': 0, 'epoch': e+1, 'loss': loss})
 
     with open(save_path / 'loss.pk', 'wb') as pkf:

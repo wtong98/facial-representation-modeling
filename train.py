@@ -53,8 +53,10 @@ def _eval(model, test_data, device, n_samples=100):
     idxs = np.random.choice(np.arange(size), n_samples, replace=False)
     x = torch.stack([test_data[i] for i in idxs]).to(device)
 
-    reco_params = model(x)
-    loss = model.loss_function(*reco_params)
+    with torch.no_grad():
+        reco_params = model(x)
+        loss = model.loss_function(*reco_params)
+
     # with torch.no_grad():
     #     reco_params = model(x)
     #     loss += model.loss_function(*reco_params)

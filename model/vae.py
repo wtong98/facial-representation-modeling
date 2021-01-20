@@ -137,7 +137,7 @@ class VAE(nn.Module):
         :return: (Tensor)
         """
 
-        z = torch.randn(num_samples, self.latent_dims).double()
+        z = torch.randn(num_samples, self.latent_dims)
         first_tensor = next(self.parameters())
         if first_tensor.is_cuda:
             z = z.to(torch.device('cuda'))

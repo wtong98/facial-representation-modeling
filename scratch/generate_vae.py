@@ -19,9 +19,9 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset, random_split
 
-IM_DIMS = (178, 218)
+IM_DIMS = (218, 178)
 TOTAL_IMAGES = 202599
-MODEL_PATH = Path('vae_save/final.pt')
+MODEL_PATH = Path('vae_save/vae_jan19_final.pt')
 DATA_PATH = Path('../data/')
 IM_PATH = DATA_PATH / 'img'
 
@@ -31,10 +31,10 @@ train_test_split = 0.01
 # <codecell>
 class VAE(nn.Module):
 
-    def __init__(self, latent_dims):
+    def __init__(self):
         super(VAE, self).__init__()
 
-        self.latent_dims = latent_dims
+        self.latent_dims = 40
 
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=16, kernel_size=5, stride=2, padding=2),
@@ -54,14 +54,14 @@ class VAE(nn.Module):
             nn.LeakyReLU(),
         )
 
-        center_size = 128*12*14
+        center_size = 128*14*12
         self.fc_mu = nn.Linear(center_size, self.latent_dims)
         self.fc_var = nn.Linear(center_size, self.latent_dims)
 
         self.decoder_input = nn.Linear(self.latent_dims, center_size)
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=5, 
-                               stride=2, padding=2, output_padding=(0,1)),
+                               stride=2, padding=2, output_padding=(1,0)),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(),
 
@@ -108,7 +108,7 @@ class VAE(nn.Module):
         """
 
         result = self.decoder_input(z)
-        result = result.view(-1, 128, 12, 14)
+        result = result.view(-1, 128, 14, 12)
         result = self.decoder(result)
         return result
 
@@ -140,11 +140,12 @@ class VAE(nn.Module):
         :param kwargs:
         :return:
         """
+        batch_size = recons.shape[0]
 
-        recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum')
-        kld_loss = torch.sum(-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim = 1), dim = 0)
-        loss = (recons_loss + kld_weight * kld_loss) / batch_size
-        return {'loss': loss, 'mse':recons_loss, 'kld':-kld_loss}
+        recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum') / batch_size
+        kld_loss = torch.sum(-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim = 1), dim = 0) / batch_size
+        loss = (recons_loss + kld_weight * kld_loss)
+        return {'loss': loss, 'mse':recons_loss, 'kld': kld_loss}
     
 
     def sample(self, num_samples:int) -> 'Tensor':
@@ -156,10 +157,10 @@ class VAE(nn.Module):
         :return: (Tensor)
         """
 
-        z = torch.randn(num_samples, self.latent_dims).double()
-
-        # TODO: for gpu power:
-        # z = z.to(current_device)
+        z = torch.randn(num_samples, self.latent_dims)
+        first_tensor = next(self.parameters())
+        if first_tensor.is_cuda:
+            z = z.to(torch.device('cuda'))
 
         samples = self.decode(z)
         return samples
@@ -175,34 +176,42 @@ class VAE(nn.Module):
         return self.forward(x)[0]
 
 
-
 # <codecell>
-
-# TODO: unify code better
-def _idx_to_im(im_idx):
-    name = str(im_idx + 1).zfill(6) + '.jpg'
-    im_path = IM_PATH / name
-
-    im = plt.imread(im_path).reshape(-1, *IM_DIMS)
-    im = im.astype('double') / 255
-    return torch.from_numpy(im)
-
-
 class CelebADataset(Dataset):
+    def __init__(self, im_path, total=TOTAL_IMAGES):
+        self.im_path = im_path
+        self.total = total
+
     def __getitem__(self, idx):
-        return _idx_to_im(idx)
+        name = str(idx + 1).zfill(6) + '.jpg'
+        target_path = self.im_path / name
+
+        # im = plt.imread(target_path).reshape(-1, *IM_DIMS)
+        im = plt.imread(target_path).transpose((2, 0, 1))
+        im = im.astype('float32') / 255
+        return torch.from_numpy(im)
 
     def __len__(self):
-        return TOTAL_IMAGES
+        return self.total
 
-num_test = int(TOTAL_IMAGES * train_test_split)
-num_train = TOTAL_IMAGES - num_test
 
-ds = CelebADataset()
-test_ds, train_ds = random_split(ds, (num_test, num_train))
+def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
+    if type(im_path) == str:
+        im_path = Path(im_path)
+
+    ds = CelebADataset(im_path, total)
+    total = len(ds)
+
+    num_test = int(total * train_test_split)
+    num_train = total - num_test
+
+    test_ds, train_ds = random_split(ds, (num_test, num_train), generator=torch.Generator().manual_seed(seed))
+    return train_ds, test_ds
+
+test_ds, train_ds = build_datasets(IM_PATH)
 
 # <codecell>
-vae = VAE(latent_dims=latent_dims).double()
+vae = VAE()
 ckpt = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
 vae.load_state_dict(ckpt['model_state_dict'])
 
@@ -210,7 +219,7 @@ vae.eval()
 
 # <codecell>
 idx = 5
-samp_im = test_ds[idx].reshape(218, 178, 3)
+samp_im = test_ds[idx].numpy().transpose(1, 2, 0)
 
 plt.imshow(samp_im)
 plt.show()
@@ -222,9 +231,12 @@ print(samp.shape)
 
 with torch.no_grad():
     reco = vae.reconstruct(samp)
+    print(reco.shape)
 
-    reco_im = torch.squeeze(reco).reshape(218, 178, 3)
-    samp_im = torch.squeeze(samp).reshape(218, 178, 3)
+    reco_im = torch.squeeze(reco).numpy().transpose(1,2,0)
+    samp_im = torch.squeeze(samp).numpy().transpose(1,2,0)
+    print(reco_im.shape)
+    print(samp_im.shape)
 
 plt.imshow(samp_im)
 plt.show()
@@ -238,9 +250,8 @@ samp = torch.from_numpy(samp)
 
 with torch.no_grad():
     reco = vae.reconstruct(samp)
-
-    reco_im = torch.squeeze(reco).reshape(-1, 218, 178, 3)
-    samp_im = torch.squeeze(samp).reshape(-1, 218, 178, 3)
+    reco_im = torch.squeeze(reco).numpy().transpose(0, 2, 3, 1)
+    samp_im = torch.squeeze(samp).numpy().transpose(0, 2, 3, 1)
 
 combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178, 3))
 combined[0::2] = samp_im
@@ -262,7 +273,7 @@ plt.savefig('image/vae_reco.png')
 # <codecell>
 with torch.no_grad():
     samp = vae.sample(25)
-    samp_im = torch.squeeze(samp).reshape(25, 218, 178, 3)
+    samp_im = torch.squeeze(samp).numpy().transpose(0, 2, 3, 1)
 
 fig = plt.figure(figsize=(10, 10))
 grid = ImageGrid(fig, 111,  # similar to subplot(111)
@@ -274,5 +285,5 @@ for ax, im in zip(grid, samp_im):
     ax.imshow(im)
 
 fig.suptitle('Sample faces drawn from VAE')
-plt.savefig('vae_sample.png')
+plt.savefig('image/vae_sample.png')
 # plt.show()

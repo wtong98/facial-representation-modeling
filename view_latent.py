@@ -12,6 +12,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from scipy.spatial import distance
 from sklearn.manifold import TSNE
 from tqdm import tqdm
 
@@ -93,6 +94,9 @@ plt.savefig(save_path / 'asian_white.png')
 
 # <codecell>
 ##### BEGIN MEAN POINT ### ------------------------------
+
+
+# MEAN AND VAR CALCS (^_^)
 all_colors = np.array([int(feat['ethnicity']) for feat in feats])
 all_genders = np.array([int(feat['gender']) for feat in feats])
 
@@ -114,6 +118,12 @@ mean_black = np.mean(black_points, axis=0)
 mean_asian = np.mean(asian_points, axis=0)
 mean_male = np.mean(male_points, axis=0)
 mean_female = np.mean(female_points, axis=0)
+
+var_white = np.cov(white_points, rowvar=False)
+var_black = np.cov(black_points, rowvar=False)
+var_asian = np.cov(asian_points, rowvar=False)
+var_male = np.cov(male_points, rowvar=False)
+var_female = np.cov(female_points, rowvar=False)
 
 full_mean = np.mean(mu_points, axis=0)
 
@@ -192,3 +202,34 @@ plt.axvline(x=center, color='red')
 plt.xlabel('<-- more Male ------ more Female -- >')
 plt.savefig(save_path / 'mean_line_proj_hist_male_female.png')
 ##### END MEAN POINT ### ---------------------------------
+
+# <codecell>
+###### BEGIN d' ### -----------------------------------
+white_to_asian = distance.mahalanobis(mean_white, mean_asian, 0.5 * (var_white + var_asian))
+print(white_to_asian)
+
+white_to_black = distance.mahalanobis(mean_white, mean_black, 0.5 * (var_white + var_black))
+print(white_to_black)
+
+asian_to_black = distance.mahalanobis(mean_asian, mean_black, 0.5 * (var_asian + var_black))
+print(asian_to_black)
+
+male_to_female = distance.mahalanobis(mean_male, mean_female, 0.5 * (var_male + var_female))
+print(male_to_female)
+
+plt.bar(x = np.arange(4), height=[
+    white_to_asian,
+    white_to_black,
+    asian_to_black,
+    male_to_female
+], tick_label=[
+    'White to Asian',
+    'White to Black',
+    'Asian to Black',
+    'Male to Female'
+])
+plt.ylabel('$d\'$')
+plt.title('Separation between classes learned by VAE')
+plt.savefig(save_path / 'd_prime_distance_between_classes.png')
+
+###### END d' #### ------------------------------------

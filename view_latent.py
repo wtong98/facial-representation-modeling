@@ -20,7 +20,7 @@ from dataset.utk import build_datasets
 from model.vae import VAE
 
 data_path = Path('data/utk')
-model_path = Path('scratch/vae_save/epoch_47.pt')
+model_path = Path('scratch/vae_save/vae_jan19_final.pt')
 save_path = Path('save/vae/latent')
 
 # <codecell>
@@ -77,18 +77,19 @@ mu_points2d = np.load(save_path / 'mu_points2d.npy')
 # <codecell>
 # TODO: size to represent uncertainty?
 
+# all_colors = np.array([int(feat['ethnicity']) for feat in feats])
 all_colors = np.array([int(feat['ethnicity']) for feat in feats])
-idxs = [(val in (0, 2)) for val in all_colors]
+idxs = [(val in (2, 3)) for val in all_colors]
 colors = all_colors[idxs]
 
 x = mu_points2d[idxs][:,0]
 y = mu_points2d[idxs][:,1]
 
-plt.title('VAE Latent Space with Ethnicity Labels (White vs Asian)')
+plt.title('VAE Latent Space with Ethnicity Labels (Black vs Asian)')
 scat = plt.scatter(x, y, c=colors, alpha=0.5)
 plt.legend(*scat.legend_elements(), title="Ethnicity", loc="upper right")
 # plt.show()
-plt.savefig(save_path / 'asian_white.png')
+plt.savefig(save_path / 'asian_black.png')
 
 ##### END TSNE #### ------------------------------------
 
@@ -126,6 +127,7 @@ var_male = np.cov(male_points, rowvar=False)
 var_female = np.cov(female_points, rowvar=False)
 
 full_mean = np.mean(mu_points, axis=0)
+full_var = np.cov(mu_points, rowvar=False)
 
 # <codecell>
 # TODO: redo VAE with permute instead of reshape
@@ -137,35 +139,35 @@ with torch.no_grad():
     female_im = vae.decode(torch.from_numpy(mean_female)).numpy()
     full_im = vae.decode(torch.from_numpy(full_mean)).numpy()
 
-# white_im = np.squeeze(white_im).reshape(218, 178, 3)
-# plt.title('Average across White faces')
-# plt.imshow(white_im)
-# plt.savefig(save_path / 'white_mean.png')
+white_im = np.squeeze(white_im).transpose(1, 2, 0)
+plt.title('Average across White faces')
+plt.imshow(white_im)
+plt.savefig(save_path / 'white_mean.png')
 
-# black_im = np.squeeze(black_im).reshape(218, 178, 3)
-# plt.title('Average across Black faces')
-# plt.imshow(black_im)
-# plt.savefig(save_path / 'black_mean.png')
+black_im = np.squeeze(black_im).transpose(1, 2, 0)
+plt.title('Average across Black faces')
+plt.imshow(black_im)
+plt.savefig(save_path / 'black_mean.png')
 
-# asian_im = np.squeeze(asian_im).reshape(218, 178, 3)
-# plt.title('Average across Asian faces')
-# plt.imshow(asian_im)
-# plt.savefig(save_path / 'asian_mean.png')
+asian_im = np.squeeze(asian_im).transpose(1, 2, 0)
+plt.title('Average across Asian faces')
+plt.imshow(asian_im)
+plt.savefig(save_path / 'asian_mean.png')
 
-male_im = np.squeeze(male_im).reshape(218, 178, 3)
+male_im = np.squeeze(male_im).transpose(1, 2, 0)
 plt.title('Average across Male faces')
 plt.imshow(male_im)
 plt.savefig(save_path / 'male_mean.png')
 
-female_im = np.squeeze(female_im).reshape(218, 178, 3)
+female_im = np.squeeze(female_im).transpose(1, 2, 0)
 plt.title('Average across Female faces')
 plt.imshow(female_im)
 plt.savefig(save_path / 'female_mean.png')
 
-# full_im = np.squeeze(full_im).reshape(218, 178, 3)
-# plt.title('Average across full face space')
-# plt.imshow(full_im)
-# plt.savefig(save_path / 'full_mean_face.png')
+full_im = np.squeeze(full_im).transpose(1, 2, 0)
+plt.title('Average across full face space')
+plt.imshow(full_im)
+plt.savefig(save_path / 'full_mean_face.png')
 
 # TODO: do several asian reco's to confirm result
 
@@ -190,6 +192,17 @@ plt.hist(mags, bins=100)
 plt.axvline(x=center, color='red')
 plt.xlabel('<-- more Black ------ more White -- >')
 plt.savefig(save_path / 'mean_line_proj_hist_black_white.png')
+
+# <codecell>
+line = (mean_asian - mean_black).reshape(-1, 1)
+mags = mu_points @ line * (1 / np.linalg.norm(line))
+center = np.mean(mags)
+
+plt.title('Projection of faces onto Asian/Black axis')
+plt.hist(mags, bins=100)
+plt.axvline(x=center, color='red')
+plt.xlabel('<-- more Black ------ more Asian -- >')
+plt.savefig(save_path / 'mean_line_proj_hist_black_asian.png')
 
 # <codecell>
 line = (mean_female - mean_male).reshape(-1, 1)
@@ -233,3 +246,9 @@ plt.title('Separation between classes learned by VAE')
 plt.savefig(save_path / 'd_prime_distance_between_classes.png')
 
 ###### END d' #### ------------------------------------
+
+# <codecell>
+# scratch
+std_dev = np.sqrt(np.mean(full_var))
+np.sqrt(np.linalg.norm(mean_white - mean_asian)) / std_dev
+# %%

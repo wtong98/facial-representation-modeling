@@ -23,9 +23,9 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from model.hm_binary import HM
 from model.vae import VAE
 from model.vae_gm import GMVAE
-# from dataset.celeba import build_datasets
+from dataset.celeba import build_datasets
 # from dataset.celeba_single import build_datasets
-from dataset.mnist import build_datasets
+# from dataset.mnist import build_datasets
 
 
 def _build_parser():
@@ -115,7 +115,7 @@ def main():
     model.to(device)
     optimizer = optim.Adam(model.parameters())
 
-    train_ds, test_ds = build_datasets(args.path, color=True)
+    train_ds, test_ds = build_datasets(args.path)
 
     losses = []
     for e in range(args.epochs):
@@ -135,7 +135,6 @@ def main():
             optimizer.zero_grad()
             output = model(x)
             total_loss = model.loss_function(output)
-            # print('TOTAL', total_loss)
             if type(total_loss) is dict: # TODO: generalize loss handling
                 total_loss = total_loss['loss']
 

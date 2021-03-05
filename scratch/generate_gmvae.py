@@ -11,13 +11,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
-from scipy.io import loadmat
 
 import torch
-from torch import nn
-from torch import optim
-from torch.nn import functional as F
-from torch.utils.data import DataLoader, Dataset, random_split
 
 # add neccessary modules
 import sys

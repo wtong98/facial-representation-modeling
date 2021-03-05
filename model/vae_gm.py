@@ -21,10 +21,10 @@ class GMVAE(nn.Module):
         super(GMVAE, self).__init__()
         self.pi = torch.Tensor([np.pi])
 
-        self.latent_x = 40      # total hidden representation
-        self.latent_w = 20      # hidden representation per cluster
-        self.clusters = 10      # number of discrete clusters learned by the model
-        self.beta_width = 100   # width of hidden layer transforming w_k --> x
+        self.latent_x = 1792      # total hidden representation
+        self.latent_w = 128      # hidden representation per cluster
+        self.clusters = 32      # number of discrete clusters learned by the model
+        self.beta_width = 1024   # width of hidden layer transforming w_k --> x
         self.mc_samples = 5     # number of Monte Carlo samples to compute at each step
 
         self.encoder = nn.Sequential(
@@ -45,36 +45,36 @@ class GMVAE(nn.Module):
             nn.LeakyReLU(),
         )
 
-        # center_size = 128*14*12
-        center_size = 512 # TODO: mnist specific
+        center_size = 128*14*12
+        # center_size = 512 # mnist specific
         self.fc_mu_x = nn.Linear(center_size, self.latent_x)
         self.fc_var_x = nn.Linear(center_size, self.latent_x)
         self.fc_mu_w = nn.Linear(center_size, self.latent_w)
         self.fc_var_w = nn.Linear(center_size, self.latent_w)
 
         self.decoder_input = nn.Linear(self.latent_x, center_size)
-        self.decoder = nn.Sequential( # TODO: output padding adjusted for mnist
+        self.decoder = nn.Sequential(
             nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=5, 
-                               stride=2, padding=2, output_padding=1),
-                            #    stride=2, padding=2, output_padding=(1,0)),
+                            #    stride=2, padding=2, output_padding=1), # mnist
+                               stride=2, padding=2, output_padding=(1,0)),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(),
 
             nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=5, 
-                               stride=2, padding=2, output_padding=0),
                             #    stride=2, padding=2, output_padding=0),
+                               stride=2, padding=2, output_padding=0),
             nn.BatchNorm2d(32),
             nn.LeakyReLU(),
 
             nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=5, 
-                               stride=2, padding=2, output_padding=1),
-                            #    stride=2, padding=2, output_padding=0),
+                            #    stride=2, padding=2, output_padding=1),
+                               stride=2, padding=2, output_padding=0),
             nn.BatchNorm2d(16),
             nn.LeakyReLU(),
 
             nn.ConvTranspose2d(in_channels=16, out_channels=3, kernel_size=5,
-                               stride=2, padding=2, output_padding=1),
                             #    stride=2, padding=2, output_padding=1),
+                               stride=2, padding=2, output_padding=1),
             nn.Sigmoid()
         )
 
@@ -125,8 +125,8 @@ class GMVAE(nn.Module):
         """
 
         result = self.decoder_input(z)
-        # result = result.view(-1, 128, 14, 12)
-        result = result.view(-1, 128, 2, 2) # TODO: mnist specific
+        result = result.view(-1, 128, 14, 12)
+        # result = result.view(-1, 128, 2, 2) # TODO: mnist specific
         result = self.decoder(result)
         return result
 
@@ -191,6 +191,7 @@ class GMVAE(nn.Module):
         w_prior_loss = self._w_prior_loss(samples)
         cond_prior_loss = self._cond_prior_loss(samples)
         total_loss = reco_loss + z_prior_loss + w_prior_loss + cond_prior_loss
+        # total_loss = z_prior_loss
 
         return {
             'loss': total_loss,
@@ -218,8 +219,7 @@ class GMVAE(nn.Module):
         return total_loss / len(samples)
 
 
-    # TODO: z_prior loss always 0 <-- STOPPED HERE
-    def _z_prior_loss(self, samples, eps=1e-10):
+    def _z_prior_loss(self, samples, eps=1e-8):
         total_loss = 0
         batch_size = samples[0]['sample_x'].shape[0]
         for samp in samples:
@@ -273,34 +273,14 @@ class GMVAE(nn.Module):
             log_probs = -0.5 * (torch.log(2 * self.pi) \
                                 + logvar \
                                 + (torch.pow(sample_x - mu, 2) / var))
-            total_prob = torch.sum(log_probs, axis=1).exp() + torch.tensor(eps)
-            # print('TOT_PROB', total_prob)
-            all_probs.append(total_prob)
-        
+            total_log_prob = torch.sum(log_probs, axis=1)
+            all_probs.append(total_log_prob)
+       
         all_probs = torch.stack(all_probs, axis=1)
-        total_probs = torch.sum(all_probs, axis=1) \
+        total_probs = torch.logsumexp(all_probs, axis=1) \
                            .unsqueeze(1) \
                            .repeat_interleave(self.clusters, axis=1)
-        probs = all_probs / total_probs
-        # print('ALL_PROB', torch.sum(probs))
-        # if torch.isnan(torch.sum(probs)):
-        # print('MU', cluster_mu)
-        # print('SAMP', sample_x)
-        # print('PROBS', probs)
-        # print('MU_NAN', torch.sum(torch.isnan(torch.stack(cluster_mu))))
-        # print('SAMP_NAN', torch.sum(torch.isnan(sample_x)))
-
-            
-        # mu = cluster_mu.repeat_interleave(batch_size, axis=0)
-        # logvar = cluster_var.repeat_interleave(batch_size, axis=0)
-        # var = logvar.exp()
-
-        # log_probs = -0.5 * (torch.log(2 * self.pi) \
-        #                     + logvar \
-        #                     + (torch.pow(sample_x - mu, 2) / var))
-
-        # total_log_probs = torch.sum(log_probs, axis=1).repeat_interleave(self.latent_x, axis=1)
-        # probs = log_probs.exp() / total_log_probs.exp()
+        probs = (all_probs - total_probs).exp()
         return probs
     
 

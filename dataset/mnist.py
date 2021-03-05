@@ -18,11 +18,16 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 
 class MNIST(Dataset):
-    def __init__(self, mnist_path):
+    def __init__(self, mnist_path, color=False):
         mnist = loadmat(mnist_path)
         first = np.float32(mnist['trainX']) / 255
         second = np.float32(mnist['testX']) / 255
         self.data = np.concatenate((first, second))
+
+        if color:
+            self.data = self.data.reshape(-1, 28, 28)
+            self.data = np.stack((self.data, self.data, self.data), axis=1)
+
 
     def __getitem__(self, idx):
         return torch.from_numpy(self.data[idx])
@@ -31,11 +36,11 @@ class MNIST(Dataset):
         return self.data.shape[0]
 
 
-def build_datasets(im_path: Path, train_test_split=0.01, seed=53110) -> (Dataset, Dataset):
+def build_datasets(im_path: Path, color=False, train_test_split=0.01, seed=53110):
     if type(im_path) == str:
         im_path = Path(im_path)
 
-    ds = MNIST(im_path)
+    ds = MNIST(im_path, color)
     total = len(ds)
 
     num_test = int(total * train_test_split)

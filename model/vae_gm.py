@@ -238,9 +238,11 @@ class GMVAE(nn.Module):
     def _w_prior_loss(self, samples):
         total_loss = 0
         batch_size = samples[0]['params_w'][0].shape[0]
+        dev = next(self.parameters()).device
+
         for samp in samples:
             params_w = samp['params_w']
-            params_w_prior = (torch.zeros((batch_size, self.latent_w)), torch.ones((batch_size, self.latent_w)))
+            params_w_prior = (torch.zeros((batch_size, self.latent_w), device=dev), torch.ones((batch_size, self.latent_w), device=dev))
             total_loss += torch.mean(self._gauss_kld(params_w, params_w_prior))
 
         return total_loss / len(samples)
@@ -272,7 +274,8 @@ class GMVAE(nn.Module):
 
         for mu, logvar in zip(cluster_mu, cluster_var):
             var = logvar.exp() + torch.tensor(eps, device=dev)
-            log_probs = -0.5 * (torch.log(2 * self.pi) \
+            log2pi = torch.log(2 * self.pi).to(dev)
+            log_probs = -0.5 * (log2pi \
                                 + logvar \
                                 + (torch.pow(sample_x - mu, 2) / var))
             total_log_prob = torch.sum(log_probs, axis=1)

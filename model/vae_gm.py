@@ -268,8 +268,10 @@ class GMVAE(nn.Module):
 
     def _z_post(self, sample_x, cluster_mu, cluster_var, eps=1e-8):  # assuming uniform prior on z
         all_probs = []
+        dev = next(self.parameters()).device
+
         for mu, logvar in zip(cluster_mu, cluster_var):
-            var = logvar.exp() + torch.tensor(eps)
+            var = logvar.exp() + torch.tensor(eps, device=dev)
             log_probs = -0.5 * (torch.log(2 * self.pi) \
                                 + logvar \
                                 + (torch.pow(sample_x - mu, 2) / var))

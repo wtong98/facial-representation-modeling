@@ -128,7 +128,7 @@ def main():
                             pin_memory=torch.cuda.is_available())
         total_batches = len(train_ds) // args.batch_size
 
-        log_every = total_batches // 100 + 1
+        log_every = total_batches // 500 + 1
         save_every = 1   # hardcoded for now
         for i, x in enumerate(loader):
             x = x.to(device)

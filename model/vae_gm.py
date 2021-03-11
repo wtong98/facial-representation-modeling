@@ -286,6 +286,12 @@ class GMVAE(nn.Module):
                            .unsqueeze(1) \
                            .repeat_interleave(self.clusters, axis=1)
         probs = (all_probs - total_probs).exp()
+        if torch.sum(torch.isnan(probs)) > 0:
+            print("NAN PROBS", probs)
+        
+        if torch.sum(probs == 0) > 0:
+            print("ZERO PROBS", probs)
+
         return probs
     
 
@@ -305,6 +311,12 @@ class GMVAE(nn.Module):
                 - 1
         total_kld =  0.5 * torch.sum(kld2, axis=1)
 
+        if torch.sum(torch.isnan(total_kld)) > 0:
+            print('NAN KLD', total_kld)
+        
+        if torch.sum(total_kld == 0) > 0:
+            print('ZERO KLD', total_kld)
+            
         return total_kld
 
     

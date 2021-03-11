@@ -13,15 +13,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from scipy.spatial import distance
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
 from tqdm import tqdm
+
+
+# add neccessary modules
+import sys
+sys.path.append('../')
 
 from dataset.utk import build_datasets
 from model.vae import VAE
 
-data_path = Path('data/utk')
-model_path = Path('scratch/vae_save/vae_jan19_final.pt')
-save_path = Path('save/vae/latent')
+data_path = Path('../data/utk')
+model_path = Path('vae_save/vae_jan19_final.pt')
+save_path = Path('../save/vae/latent')
 
 # <codecell>
 if not save_path.exists():
@@ -68,36 +74,32 @@ with open(save_path / 'feats.pickle', 'rb') as fp:
 # <codecell>
 
 #### BEGIN TSNE -------------------------------------------
-mu_points2d = TSNE().fit_transform(mu_points)
-np.save(save_path / 'mu_points2d.npy', mu_points2d)
+# mu_points2d = TSNE().fit_transform(mu_points)
+# np.save(save_path / 'mu_points2d.npy', mu_points2d)
 
-# <codecell>
-mu_points2d = np.load(save_path / 'mu_points2d.npy')
+# # <codecell>
+# mu_points2d = np.load(save_path / 'mu_points2d.npy')
 
-# <codecell>
-# TODO: size to represent uncertainty?
-
+# # <codecell>
+# # TODO: size to represent uncertainty?
+# # all_colors = np.array([int(feat['ethnicity']) for feat in feats])
 # all_colors = np.array([int(feat['ethnicity']) for feat in feats])
-all_colors = np.array([int(feat['ethnicity']) for feat in feats])
-idxs = [(val in (2, 3)) for val in all_colors]
-colors = all_colors[idxs]
+# idxs = [(val in (2, 3)) for val in all_colors]
+# colors = all_colors[idxs]
 
-x = mu_points2d[idxs][:,0]
-y = mu_points2d[idxs][:,1]
+# x = mu_points2d[idxs][:,0]
+# y = mu_points2d[idxs][:,1]
 
-plt.title('VAE Latent Space with Ethnicity Labels (Black vs Asian)')
-scat = plt.scatter(x, y, c=colors, alpha=0.5)
-plt.legend(*scat.legend_elements(), title="Ethnicity", loc="upper right")
-# plt.show()
-plt.savefig(save_path / 'asian_black.png')
+# plt.title('VAE Latent Space with Ethnicity Labels (Black vs Asian)')
+# scat = plt.scatter(x, y, c=colors, alpha=0.5)
+# plt.legend(*scat.legend_elements(), title="Ethnicity", loc="upper right")
+# # plt.show()
+# plt.savefig(save_path / 'asian_black.png')
 
 ##### END TSNE #### ------------------------------------
 
 # <codecell>
-##### BEGIN MEAN POINT ### ------------------------------
-
-
-# MEAN AND VAR CALCS (^_^)
+# Separate data points by label
 all_colors = np.array([int(feat['ethnicity']) for feat in feats])
 all_genders = np.array([int(feat['gender']) for feat in feats])
 
@@ -113,6 +115,35 @@ black_points = mu_points[black_idxs]
 asian_points = mu_points[asian_idxs]
 male_points = mu_points[male_idxs]
 female_points = mu_points[female_idxs]
+
+# <codecell>
+##### BEGIN LDA ANALYSIS ### ----------------------------
+def lda_analysis(class0, class1):
+    data = np.concatenate((class0, class1))
+    labels = np.concatenate((np.zeros(class0.shape[0]), np.ones(class1.shape[0])))
+
+    clf = LinearDiscriminantAnalysis()
+    clf.fit(data, labels)
+
+    # TODO: color plot <--- STOPPED HERE
+    line = clf.coef_.reshape(-1, 1)
+    mags = data @ line * (1 / np.linalg.norm(line))
+    center = np.mean(data)
+
+    plt.title('Projection of faces onto White/Black axis')
+    plt.hist(mags, bins=100)
+    plt.axvline(x=center, color='red')
+    plt.xlabel('<-- more Black ------ more White -- >')
+    plt.savefig(save_path / 'mean_line_proj_hist_black_white.png')
+
+
+lda_analysis(white_points, black_points)
+
+##### END LDA ANALYSIS #### -----------------------------
+
+# <codecell>
+##### BEGIN MEAN POINT ### ------------------------------
+# MEAN AND VAR CALCS (^_^)
 
 mean_white = np.mean(white_points, axis=0)
 mean_black = np.mean(black_points, axis=0)

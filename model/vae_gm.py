@@ -21,11 +21,15 @@ class GMVAE(nn.Module):
         super(GMVAE, self).__init__()
         self.pi = torch.Tensor([np.pi])
 
-        self.latent_x = 1792      # total hidden representation
-        self.latent_w = 128      # hidden representation per cluster
+        # large latent dimensions may inflate kld?
+        self.latent_x = 64      # total hidden representation
+        self.latent_w = 16      # hidden representation per cluster
         self.clusters = 32      # number of discrete clusters learned by the model
         self.beta_width = 1024   # width of hidden layer transforming w_k --> x
-        self.mc_samples = 5     # number of Monte Carlo samples to compute at each step
+        self.mc_samples = 1     # number of Monte Carlo samples to compute at each step
+
+        # TODO: this is a hacky fix
+        self.z_prior_scale = 20 # scale z prior to keep up with magnitude of other losses
 
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=16, kernel_size=5, stride=2, padding=2),
@@ -232,7 +236,7 @@ class GMVAE(nn.Module):
                                     + torch.log(torch.tensor(self.clusters, dtype=torch.float)))
             total_loss += torch.sum(kld_terms) / batch_size
             
-        return total_loss / len(samples)
+        return self.z_prior_scale * (total_loss / len(samples))
 
 
     def _w_prior_loss(self, samples):
@@ -286,11 +290,15 @@ class GMVAE(nn.Module):
                            .unsqueeze(1) \
                            .repeat_interleave(self.clusters, axis=1)
         probs = (all_probs - total_probs).exp()
+
         if torch.sum(torch.isnan(probs)) > 0:
             print("NAN PROBS", probs)
         
         if torch.sum(probs == 0) > 0:
             print("ZERO PROBS", probs)
+            # print("ALL PROBS", all_probs)
+            # print("TOTAL PROBS", total_probs)
+            print("SUM ZERO PROB", torch.sum(probs))
 
         return probs
     

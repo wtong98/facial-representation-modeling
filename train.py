@@ -131,6 +131,7 @@ def main():
         log_every = total_batches // 500 + 1
         save_every = 1   # hardcoded for now
         for i, x in enumerate(loader):
+            print('iter', i)
             x = x.to(device)
             optimizer.zero_grad()
             output = model(x)

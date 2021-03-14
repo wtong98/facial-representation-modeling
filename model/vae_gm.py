@@ -5,6 +5,7 @@ Gaussian mixture prior, rather than a standard Gaussian.
 author: William Tong (wlt2115@columbia.edu)
 date: 11/5/2020
 """
+import sys
 
 import numpy as np
 
@@ -15,6 +16,9 @@ from torch.nn import functional as F
 from torch.nn.modules.container import ParameterList
 from torch.nn.parameter import Parameter
 
+# TODO: figure out why minimizing z_prior loss alone seems to cause other losses
+#       to explode
+# TODO: debug again with MNIST
 class GMVAE(nn.Module):
 
     def __init__(self):
@@ -22,14 +26,14 @@ class GMVAE(nn.Module):
         self.pi = torch.Tensor([np.pi])
 
         # large latent dimensions may inflate kld?
-        self.latent_x = 64      # total hidden representation
-        self.latent_w = 16      # hidden representation per cluster
-        self.clusters = 32      # number of discrete clusters learned by the model
-        self.beta_width = 1024   # width of hidden layer transforming w_k --> x
+        self.latent_x = 40      # total hidden representation
+        self.latent_w = 20      # hidden representation per cluster
+        self.clusters = 5      # number of discrete clusters learned by the model
+        self.beta_width = 100   # width of hidden layer transforming w_k --> x
         self.mc_samples = 1     # number of Monte Carlo samples to compute at each step
 
         # TODO: this is a hacky fix
-        self.z_prior_scale = 20 # scale z prior to keep up with magnitude of other losses
+        self.z_prior_scale = 1 # scale z prior to keep up with magnitude of other losses
 
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=16, kernel_size=5, stride=2, padding=2),
@@ -195,7 +199,6 @@ class GMVAE(nn.Module):
         w_prior_loss = self._w_prior_loss(samples)
         cond_prior_loss = self._cond_prior_loss(samples)
         total_loss = reco_loss + z_prior_loss + w_prior_loss + cond_prior_loss
-        # total_loss = z_prior_loss
 
         return {
             'loss': total_loss,
@@ -286,19 +289,31 @@ class GMVAE(nn.Module):
             all_probs.append(total_log_prob)
        
         all_probs = torch.stack(all_probs, axis=1)
-        total_probs = torch.logsumexp(all_probs, axis=1) \
+        total_probs = torch.sum(all_probs, axis=1) \
                            .unsqueeze(1) \
                            .repeat_interleave(self.clusters, axis=1)
-        probs = (all_probs - total_probs).exp()
+        raw_probs = 1 - (all_probs / total_probs)
+        total_raw_probs = torch.sum(raw_probs, axis=1) \
+                           .unsqueeze(1) \
+                           .repeat_interleave(self.clusters, axis=1)
+        probs = raw_probs / total_raw_probs
+        # TODO: problem with curse of dimensionality <-- STOPPED HERE
+        # total_probs = torch.logsumexp(all_probs, axis=1) \
+        #                    .unsqueeze(1) \
+        #                    .repeat_interleave(self.clusters, axis=1)
+        # probs = (all_probs - total_probs).exp()
 
         if torch.sum(torch.isnan(probs)) > 0:
-            print("NAN PROBS", probs)
+            print("NAN PROBS", probs) # TODO: this sometime still happens with extreme values
+            print("ALL PROBS", all_probs)
+            print("TOTAL PROBS", total_probs)
+            sys.exit(1)
         
-        if torch.sum(probs == 0) > 0:
-            print("ZERO PROBS", probs)
-            # print("ALL PROBS", all_probs)
-            # print("TOTAL PROBS", total_probs)
-            print("SUM ZERO PROB", torch.sum(probs))
+        # if torch.sum(probs == 0) > 0:
+        #     print("ZERO PROBS", probs)
+        #     print("ALL PROBS", all_probs)
+        #     print("TOTAL PROBS", total_probs)
+        #     print("SUM ZERO PROB", torch.sum(probs))
 
         return probs
     

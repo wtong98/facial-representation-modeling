@@ -19,20 +19,18 @@ import sys
 sys.path.append('../')
 
 from model.vae_gm import GMVAE
-# from dataset.celeba import build_datasets
+from dataset.celeba import build_datasets
 # from dataset.celeba_single import build_datasets
-from dataset.mnist import build_datasets
+# from dataset.mnist import build_datasets
 
 IM_DIMS = (218, 178)
 TOTAL_IMAGES = 202599
-MODEL_PATH = Path('../save/gmvae/final.pt')
-DATA_PATH = Path('../mnist.mat')
-# IM_PATH = DATA_PATH / 'img'
-
-train_test_split = 0.01
+MODEL_PATH = Path('vae_save/gmvae_epoch1.pt')
+DATA_PATH = Path('../data')
+IM_PATH = DATA_PATH / 'img'
 
 # <codecell>
-train_ds, test_ds = build_datasets(DATA_PATH, color=True)
+train_ds, test_ds = build_datasets(DATA_PATH)
 
 # <codecell>
 model = GMVAE()

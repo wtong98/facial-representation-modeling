@@ -28,8 +28,8 @@ class GMVAE(nn.Module):
         # large latent dimensions may inflate kld?
         self.latent_x = 40      # total hidden representation
         self.latent_w = 20      # hidden representation per cluster
-        self.clusters = 5      # number of discrete clusters learned by the model
-        self.beta_width = 100   # width of hidden layer transforming w_k --> x
+        self.clusters = 64      # number of discrete clusters learned by the model
+        self.beta_width = 512   # width of hidden layer transforming w_k --> x
         self.mc_samples = 1     # number of Monte Carlo samples to compute at each step
 
         # TODO: this is a hacky fix
@@ -237,7 +237,13 @@ class GMVAE(nn.Module):
             z_post = self._z_post(sample_x, cluster_mu, cluster_var)
             kld_terms = z_post * (torch.log(z_post + torch.tensor(eps)) \
                                     + torch.log(torch.tensor(self.clusters, dtype=torch.float)))
-            total_loss += torch.sum(kld_terms) / batch_size
+            kld_terms_round = torch.round(kld_terms * 1e5) / 1e5
+            kld_loss = torch.sum(kld_terms_round) / batch_size
+            total_loss += kld_loss
+            if kld_loss > torch.log(torch.tensor(self.clusters, dtype=torch.float)):
+                print('Z PRIOR TOO BIG: ', kld_loss)
+                torch.set_printoptions(profile='full')
+                print('Z_POST', z_post)
             
         return self.z_prior_scale * (total_loss / len(samples))
 
@@ -292,16 +298,16 @@ class GMVAE(nn.Module):
         total_probs = torch.sum(all_probs, axis=1) \
                            .unsqueeze(1) \
                            .repeat_interleave(self.clusters, axis=1)
-        raw_probs = 1 - (all_probs / total_probs)
-        total_raw_probs = torch.sum(raw_probs, axis=1) \
-                           .unsqueeze(1) \
-                           .repeat_interleave(self.clusters, axis=1)
-        probs = raw_probs / total_raw_probs
-        # TODO: problem with curse of dimensionality <-- STOPPED HERE
-        # total_probs = torch.logsumexp(all_probs, axis=1) \
+        # raw_probs = 1 - (all_probs / total_probs)
+        # total_raw_probs = torch.sum(raw_probs, axis=1) \
         #                    .unsqueeze(1) \
         #                    .repeat_interleave(self.clusters, axis=1)
-        # probs = (all_probs - total_probs).exp()
+        # probs = raw_probs / total_raw_probs
+        # TODO: problem with curse of dimensionality <-- STOPPED HERE
+        total_probs = torch.logsumexp(all_probs, axis=1) \
+                           .unsqueeze(1) \
+                           .repeat_interleave(self.clusters, axis=1)
+        probs = (all_probs - total_probs).exp()
 
         if torch.sum(torch.isnan(probs)) > 0:
             print("NAN PROBS", probs) # TODO: this sometime still happens with extreme values

@@ -132,6 +132,7 @@ def main():
         save_every = 1   # hardcoded for now
         for i, x in enumerate(loader):
             print('iter', i)
+            print('ORIG SHAPE', x.shape)
             x = x.to(device)
             optimizer.zero_grad()
             output = model(x)

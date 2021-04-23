@@ -32,6 +32,8 @@ class GMVAE(nn.Module):
         self.beta_width = 512   # width of hidden layer transforming w_k --> x
         self.mc_samples = 1     # number of Monte Carlo samples to compute at each step
 
+        self.latent_dims = self.latent_x    # keep consistency with VAE
+
         # TODO: this is a hacky fix
         self.z_prior_scale = 1 # scale z prior to keep up with magnitude of other losses
 
@@ -293,6 +295,7 @@ class GMVAE(nn.Module):
                                 + (torch.pow(sample_x - mu, 2) / var))
             total_log_prob = torch.sum(log_probs, axis=1)
             all_probs.append(total_log_prob)
+            print("LOG_PROBS", total_log_prob)
        
         all_probs = torch.stack(all_probs, axis=1)
         total_probs = torch.sum(all_probs, axis=1) \

@@ -22,21 +22,24 @@ from tqdm import tqdm
 import sys
 sys.path.append('../')
 
-from dataset.utk import build_datasets
+from dataset.cfd import build_datasets
+# from dataset.utk import build_datasets
 from model.vae import VAE
+# from model.vae_gm import GMVAE
 
-data_path = Path('../data/utk')
-model_path = Path('vae_save/vae_jan19_final.pt')
-save_path = Path('../save/vae/latent')
+data_path = Path('../data/cfd')
+# data_path = Path('../data/utk')
+model_path = Path('../save/vae/vae_jan19_final.pt')
+save_path = Path('../save/vae/cfd/latent')
 
 # <codecell>
 if not save_path.exists():
     save_path.mkdir(parents=True)
 
-vae = VAE().double()
+model = VAE()
 ckpt = torch.load(model_path, map_location=torch.device('cpu'))
-vae.load_state_dict(ckpt['model_state_dict'])
-vae.eval()
+model.load_state_dict(ckpt['model_state_dict'])
+model.eval()
 
 _, test_ds = build_datasets(data_path, train_test_split=1)
 
@@ -44,7 +47,7 @@ _, test_ds = build_datasets(data_path, train_test_split=1)
 
 # <codecell>
 test_len = len(test_ds)
-ldims = vae.latent_dims
+ldims = model.latent_dims
 mu_points = np.zeros((test_len, ldims))
 var_points = np.zeros((test_len, ldims))
 feats = []
@@ -52,7 +55,8 @@ feats = []
 for i in tqdm(range(test_len)):
     im, feat = test_ds[i]
     im = im.unsqueeze(0)
-    mu, var = vae.encode(im)
+    mu, var = model.encode(im)
+    # mu, var = model.encode(im)[0]   # neccessary adaptation for GMVAE
     
     with torch.no_grad():
         mu_points[i] = mu.numpy()
@@ -118,26 +122,59 @@ female_points = mu_points[female_idxs]
 
 # <codecell>
 ##### BEGIN LDA ANALYSIS ### ----------------------------
-def lda_analysis(class0, class1):
+def lda_analysis(class0, class1, title='Projection onto LDA Axis',
+                                 name0='Class 0',
+                                 name1='Class 1',
+                                 save_path=None):
     data = np.concatenate((class0, class1))
     labels = np.concatenate((np.zeros(class0.shape[0]), np.ones(class1.shape[0])))
 
     clf = LinearDiscriminantAnalysis()
     clf.fit(data, labels)
 
-    # TODO: color plot <--- STOPPED HERE
     line = clf.coef_.reshape(-1, 1)
-    mags = data @ line * (1 / np.linalg.norm(line))
-    center = np.mean(data)
+    mags_0 = class0 @ line * (1 / np.linalg.norm(line))
+    mags_1 = class1 @ line * (1 / np.linalg.norm(line))
+    data = data @ line * (1 / np.linalg.norm(line))
+    # center = np.mean(data)
 
-    plt.title('Projection of faces onto White/Black axis')
-    plt.hist(mags, bins=100)
-    plt.axvline(x=center, color='red')
-    plt.xlabel('<-- more Black ------ more White -- >')
-    plt.savefig(save_path / 'mean_line_proj_hist_black_white.png')
+    plt.title(title)
+    plt.hist(data, bins=100, alpha=0.2, label='All points')
+    plt.hist(mags_0, bins=100, alpha=0.9, label=name0)
+    plt.hist(mags_1, bins=100, alpha=0.9, label=name1)
+    # plt.axvline(x=center, color='red')
+    plt.xlabel('Projection coordinate')
+    plt.ylabel('Count')
+    plt.legend()
+
+    if save_path is not None:
+        plt.savefig(save_path)
 
 
-lda_analysis(white_points, black_points)
+lda_analysis(male_points, female_points, title='Projection onto Male/Female LDA Axis',
+                                         name0='Male',
+                                         name1='Female',
+                                         save_path=save_path / 'lda_analysis' / 'male_female_lda.png')
+plt.clf()
+
+lda_analysis(black_points, white_points, title='Projection onto Black/White LDA Axis',
+                                         name0='Black',
+                                         name1='White',
+                                         save_path=save_path / 'lda_analysis' / 'black_white_lda.png')
+plt.clf()
+
+lda_analysis(black_points, asian_points, title='Projection onto Black/Asian LDA Axis',
+                                         name0='Black',
+                                         name1='Asian',
+                                         save_path=save_path / 'lda_analysis' / 'black_asian_lda.png')
+plt.clf()
+
+
+lda_analysis(asian_points, white_points, title='Projection onto Asian/White LDA Axis',
+                                         name0='Asian',
+                                         name1='White',
+                                         save_path=save_path / 'lda_analysis' / 'asian_white_lda.png')
+plt.clf()
 
 ##### END LDA ANALYSIS #### -----------------------------
 
@@ -162,13 +199,14 @@ full_var = np.cov(mu_points, rowvar=False)
 
 # <codecell>
 # TODO: redo VAE with permute instead of reshape
+model = model.double()
 with torch.no_grad():
-    white_im = vae.decode(torch.from_numpy(mean_white)).numpy()
-    black_im = vae.decode(torch.from_numpy(mean_black)).numpy()
-    asian_im = vae.decode(torch.from_numpy(mean_asian)).numpy()
-    male_im = vae.decode(torch.from_numpy(mean_male)).numpy()
-    female_im = vae.decode(torch.from_numpy(mean_female)).numpy()
-    full_im = vae.decode(torch.from_numpy(full_mean)).numpy()
+    white_im = model.decode(torch.from_numpy(mean_white)).numpy()
+    black_im = model.decode(torch.from_numpy(mean_black)).numpy()
+    asian_im = model.decode(torch.from_numpy(mean_asian)).numpy()
+    male_im = model.decode(torch.from_numpy(mean_male)).numpy()
+    female_im = model.decode(torch.from_numpy(mean_female)).numpy()
+    full_im = model.decode(torch.from_numpy(full_mean)).numpy()
 
 white_im = np.squeeze(white_im).transpose(1, 2, 0)
 plt.title('Average across White faces')

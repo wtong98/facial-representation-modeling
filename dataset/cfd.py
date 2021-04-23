@@ -1,19 +1,18 @@
 """
-Wrapper for UTK dataset
+Wrapper for CFD dataset. Labels are:
 
-Ethnicity labels appear to be
+Ethnicity:
 0: White
 1: Black
 2: Asian
-3: Indian
-4: Other
+3: Latinx
 
-Sex labels appear to be
+Sex: 
 0: Male
 1: Female
 
 author: William Tong
-date: 12/26/2020
+date: 4/12/2021
 """
 
 from pathlib import Path
@@ -25,9 +24,9 @@ from torch.utils.data import Dataset, random_split
 
 from dataset.celeba import IM_DIMS
 
-TOTAL_IMAGES = 23708
+TOTAL_IMAGES = 597
 
-class UTKDataset(Dataset):
+class CFDDataset(Dataset):
     def __init__(self, im_path, total=TOTAL_IMAGES):
         self.im_path = im_path
         self.total = total
@@ -39,15 +38,38 @@ class UTKDataset(Dataset):
         im = resize(im, IM_DIMS)
         im = im.transpose(2, 0, 1)
 
-        labels = target_path.stem.split('_')
+        labels = target_path.stem.split('-')
 
         features = {
-            'age': labels[0],
-            'gender': labels[1],
-            'ethnicity': labels[2] if len(labels) == 4 else 4
+            'gender': CFDDataset._gender_to_label(labels[1][1]),
+            'ethnicity': CFDDataset._ethnicity_to_label(labels[1][0])
         }
 
         return torch.from_numpy(im), features
+    
+    @staticmethod
+    def _gender_to_label(gender: str):
+        if gender == 'M':
+            return 0
+        elif gender == 'F':
+            return 1
+        else:
+            print('Unknown gender: ', gender)
+            return -1
+    
+    @staticmethod
+    def _ethnicity_to_label(eth: str):
+        if eth == 'W':
+            return 0
+        elif eth == 'B':
+            return 1
+        elif eth == 'A':
+            return 2
+        elif eth == 'L':
+            return 3
+        else:
+            print('Unknown ethnicity: ', eth)
+            return -1 
 
 
     def __len__(self):
@@ -58,7 +80,7 @@ def build_datasets(im_path: Path, total=TOTAL_IMAGES, train_test_split=0.05, see
     if type(im_path) == str:
         im_path = Path(im_path)
 
-    ds = UTKDataset(im_path, total)
+    ds = CFDDataset(im_path, total)
     total = len(ds)
 
     num_test = int(total * train_test_split)

@@ -19,18 +19,20 @@ import sys
 sys.path.append('../')
 
 from model.vae_gm import GMVAE
-from dataset.celeba import build_datasets
+from dataset.cfd import build_datasets
+# from dataset.celeba import build_datasets
 # from dataset.celeba_single import build_datasets
 # from dataset.mnist import build_datasets
 
 IM_DIMS = (218, 178)
 TOTAL_IMAGES = 202599
-MODEL_PATH = Path('vae_save/gmvae_epoch1.pt')
+MODEL_PATH = Path('../save/gmvae/final.pt')
 DATA_PATH = Path('../data')
-IM_PATH = DATA_PATH / 'img'
+# IM_PATH = DATA_PATH / 'img'
+IM_PATH = DATA_PATH / 'cfd'
 
 # <codecell>
-train_ds, test_ds = build_datasets(DATA_PATH)
+train_ds, test_ds = build_datasets(IM_PATH)
 
 # <codecell>
 model = GMVAE()
@@ -75,8 +77,8 @@ with torch.no_grad():
     reco_im = torch.squeeze(reco).numpy().transpose(0, 2, 3, 1)
     samp_im = torch.squeeze(samp).numpy().transpose(0, 2, 3, 1)
 
-# combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178, 3))
-combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 28, 28, 3))
+combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 218, 178, 3))
+# combined = np.empty((reco_im.shape[0] + samp_im.shape[0], 28, 28, 3))
 combined[0::2] = samp_im
 combined[1::2] = reco_im
 
@@ -91,10 +93,10 @@ for ax, im in zip(grid, combined):
 
 fig.suptitle('GMVAE reconstructions')
 # plt.show()
-plt.savefig('image/gmvae/gmvae_mnist_reco.png')
+plt.savefig('image/gmvae/gmvae_face_reco.png')
 
 # <codecell>
-for cluster_id in range(10):
+for cluster_id in range(4):
     with torch.no_grad():
         samp = model.sample(25, cluster_id)
         samp_im = torch.squeeze(samp).numpy().transpose(0, 2, 3, 1)
@@ -108,6 +110,6 @@ for cluster_id in range(10):
     for ax, im in zip(grid, samp_im):
         ax.imshow(im)
 
-    fig.suptitle('Sample digits drawn from GMVAE: Cluster %d' % cluster_id)
-    plt.savefig('image/gmvae/gmvae_mnist_sample_id%d.png' % cluster_id)
+    fig.suptitle('Sample faces drawn from GMVAE: Cluster %d' % cluster_id)
+    plt.savefig('image/gmvae/gmvae_face_sample_id%d.png' % cluster_id)
 # plt.show()

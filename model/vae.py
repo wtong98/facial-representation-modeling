@@ -11,10 +11,10 @@ from torch.nn import functional as F
 
 class VAE(nn.Module):
 
-    def __init__(self):
+    def __init__(self, latent_dims=40):
         super(VAE, self).__init__()
 
-        self.latent_dims = 40
+        self.latent_dims = latent_dims
 
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=16, kernel_size=5, stride=2, padding=2),
@@ -106,20 +106,18 @@ class VAE(nn.Module):
         return eps * std + mu
 
     
-    def forward(self, data: 'Tensor', **kwargs) -> 'List[Tensor]':
+    def forward(self, data: 'Tensor') -> 'List[Tensor]':
         mu, log_var = self.encode(data)
         z = self.reparameterize(mu, log_var)
         return  [self.decode(z), data, mu, log_var]
     
 
-    def loss_function(self, recons, data, mu, log_var, kld_weight=1) -> dict:
+    def loss_function(self, samples, kld_weight=1) -> dict:
         """
         Computes the VAE loss function.
         KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
-        :param args:
-        :param kwargs:
-        :return:
         """
+        recons, data, mu, log_var = samples
         batch_size = recons.shape[0]
 
         recons_loss = 0.5 * F.mse_loss(recons, data, reduction='sum') / batch_size
@@ -145,7 +143,7 @@ class VAE(nn.Module):
         return samples
     
 
-    def reconstruct(self, x: 'Tensor', **kwargs) -> 'Tensor':
+    def reconstruct(self, x: 'Tensor') -> 'Tensor':
         """
         Given an input image x, returns the reconstructed image
         :param x: (Tensor) [B x C x H x W]
@@ -153,4 +151,8 @@ class VAE(nn.Module):
         """
 
         return self.forward(x)[0]
+    
+
+    def print_loss(self, loss):
+        return "loss: {loss}, mse: {mse}, kld: {kld}".format(**loss)
 

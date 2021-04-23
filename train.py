@@ -9,15 +9,11 @@ import logging
 import pickle
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
-from scipy.io import loadmat
 
 import torch
-from torch import nn
 from torch import optim
-from torch.nn import functional as F
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader
 
 # from model.hm import HM
 from model.hm_binary import HM
@@ -41,6 +37,8 @@ def _build_parser():
         help='Specify this toggle to use the full-color HM model'),
     parser.add_argument('--epochs', type=int, default=20,
         help='Number of epochs to train for. Defaults to 20')
+    parser.add_argument('--dim', type=int, default=40,
+        help='Latent dimension of the model (VAE only)')
     parser.add_argument('--batch_size', type=int, default=32,
         help='Size of each batch fed to the model. Defaults to 32')
     parser.add_argument('--workers', type=int, default=4,
@@ -96,14 +94,11 @@ def main():
     model = None
     save_path = args.save
     if args.model == 'vae':
-        model = VAE()
-        save_path = save_path / 'vae'
+        model = VAE(args.dim)
     elif args.model == 'hm':
         model = HM(args.color)  # TODO: pass in args.color
-        save_path = save_path / 'hm'
     elif args.model == 'gmvae':
         model = GMVAE()
-        save_path = save_path / 'gmvae'
     else:
         logging.critical('model unimplemented: %s' % args.model)
         return
@@ -128,11 +123,9 @@ def main():
                             pin_memory=torch.cuda.is_available())
         total_batches = len(train_ds) // args.batch_size
 
-        log_every = total_batches // 500 + 1
+        log_every = total_batches // 50 + 1
         save_every = 1   # hardcoded for now
         for i, x in enumerate(loader):
-            print('iter', i)
-            print('ORIG SHAPE', x.shape)
             x = x.to(device)
             optimizer.zero_grad()
             output = model(x)

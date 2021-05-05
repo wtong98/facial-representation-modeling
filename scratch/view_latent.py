@@ -17,7 +17,6 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
 from tqdm import tqdm
 
-
 # add neccessary modules
 import sys
 sys.path.append('../')
@@ -26,6 +25,7 @@ from dataset.cfd import build_datasets
 # from dataset.utk import build_datasets
 from model.vae import VAE
 # from model.vae_gm import GMVAE
+from util import lda_analysis
 
 data_path = Path('../data/cfd')
 # data_path = Path('../data/utk')
@@ -122,59 +122,26 @@ female_points = mu_points[female_idxs]
 
 # <codecell>
 ##### BEGIN LDA ANALYSIS ### ----------------------------
-def lda_analysis(class0, class1, title='Projection onto LDA Axis',
-                                 name0='Class 0',
-                                 name1='Class 1',
-                                 save_path=None):
-    data = np.concatenate((class0, class1))
-    labels = np.concatenate((np.zeros(class0.shape[0]), np.ones(class1.shape[0])))
-
-    clf = LinearDiscriminantAnalysis()
-    clf.fit(data, labels)
-
-    line = clf.coef_.reshape(-1, 1)
-    mags_0 = class0 @ line * (1 / np.linalg.norm(line))
-    mags_1 = class1 @ line * (1 / np.linalg.norm(line))
-    data = data @ line * (1 / np.linalg.norm(line))
-    # center = np.mean(data)
-
-    plt.title(title)
-    plt.hist(data, bins=100, alpha=0.2, label='All points')
-    plt.hist(mags_0, bins=100, alpha=0.9, label=name0)
-    plt.hist(mags_1, bins=100, alpha=0.9, label=name1)
-    # plt.axvline(x=center, color='red')
-    plt.xlabel('Projection coordinate')
-    plt.ylabel('Count')
-    plt.legend()
-
-    if save_path is not None:
-        plt.savefig(save_path)
-
-
+# TODO: untested
 lda_analysis(male_points, female_points, title='Projection onto Male/Female LDA Axis',
                                          name0='Male',
                                          name1='Female',
                                          save_path=save_path / 'lda_analysis' / 'male_female_lda.png')
-plt.clf()
 
 lda_analysis(black_points, white_points, title='Projection onto Black/White LDA Axis',
                                          name0='Black',
                                          name1='White',
                                          save_path=save_path / 'lda_analysis' / 'black_white_lda.png')
-plt.clf()
 
 lda_analysis(black_points, asian_points, title='Projection onto Black/Asian LDA Axis',
                                          name0='Black',
                                          name1='Asian',
                                          save_path=save_path / 'lda_analysis' / 'black_asian_lda.png')
-plt.clf()
-
 
 lda_analysis(asian_points, white_points, title='Projection onto Asian/White LDA Axis',
                                          name0='Asian',
                                          name1='White',
                                          save_path=save_path / 'lda_analysis' / 'asian_white_lda.png')
-plt.clf()
 
 ##### END LDA ANALYSIS #### -----------------------------
 

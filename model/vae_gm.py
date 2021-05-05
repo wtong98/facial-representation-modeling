@@ -21,16 +21,20 @@ from torch.nn.parameter import Parameter
 # TODO: debug again with MNIST
 class GMVAE(nn.Module):
 
-    def __init__(self):
+    def __init__(self, latent_x=40,
+                       latent_w=20,
+                       clusters=64,
+                       beta_width=512,
+                       mc_samples=1):
         super(GMVAE, self).__init__()
         self.pi = torch.Tensor([np.pi])
 
         # large latent dimensions may inflate kld?
-        self.latent_x = 40      # total hidden representation
-        self.latent_w = 20      # hidden representation per cluster
-        self.clusters = 64      # number of discrete clusters learned by the model
-        self.beta_width = 512   # width of hidden layer transforming w_k --> x
-        self.mc_samples = 1     # number of Monte Carlo samples to compute at each step
+        self.latent_x = latent_x         # total hidden representation
+        self.latent_w = latent_w         # hidden representation per cluster
+        self.clusters = clusters         # number of discrete clusters learned by the model
+        self.beta_width = beta_width     # width of hidden layer transforming w_k --> x
+        self.mc_samples = mc_samples     # number of Monte Carlo samples to compute at each step
 
         self.latent_dims = self.latent_x    # keep consistency with VAE
 

@@ -39,6 +39,7 @@ def _build_parser():
         help='Number of epochs to train for. Defaults to 20')
     parser.add_argument('--dim', type=int, default=40,
         help='Latent dimension of the model (VAE only)')
+    # TODO: add params for GMVAE
     parser.add_argument('--batch_size', type=int, default=32,
         help='Size of each batch fed to the model. Defaults to 32')
     parser.add_argument('--workers', type=int, default=4,
@@ -95,6 +96,7 @@ def main():
     save_path = args.save
     if args.model == 'vae':
         model = VAE(args.dim)
+        logging.info('training with dims: {}'.format(args.dim))
     elif args.model == 'hm':
         model = HM(args.color)  # TODO: pass in args.color
     elif args.model == 'gmvae':

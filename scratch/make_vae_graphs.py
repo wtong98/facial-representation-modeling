@@ -16,7 +16,7 @@ sys.path.append('../')
 
 from dataset.cfd import build_datasets
 from model.vae import VAE
-from util import lda_analysis
+from util import lda_analysis, lda_test_acc, svd_analysis
 
 
 out_path = Path('../save/vae/grid_search')
@@ -121,23 +121,11 @@ for conf in configs:
                                             name1='White',
                                             save_path=out_dir / 'lda_analysis' / 'asian_white_lda.png')
     
-    # d' separation
-    mean_white = np.mean(white_points, axis=0)
-    mean_black = np.mean(black_points, axis=0)
-    mean_asian = np.mean(asian_points, axis=0)
-    mean_male = np.mean(male_points, axis=0)
-    mean_female = np.mean(female_points, axis=0)
-
-    var_white = np.cov(white_points, rowvar=False)
-    var_black = np.cov(black_points, rowvar=False)
-    var_asian = np.cov(asian_points, rowvar=False)
-    var_male = np.cov(male_points, rowvar=False)
-    var_female = np.cov(female_points, rowvar=False)
-
-    white_to_asian = distance.mahalanobis(mean_white, mean_asian, 0.5 * (var_white + var_asian))
-    white_to_black = distance.mahalanobis(mean_white, mean_black, 0.5 * (var_white + var_black))
-    asian_to_black = distance.mahalanobis(mean_asian, mean_black, 0.5 * (var_asian + var_black))
-    male_to_female = distance.mahalanobis(mean_male, mean_female, 0.5 * (var_male + var_female))
+    # LDA Test Error
+    white_to_asian = lda_test_acc(white_points, asian_points)
+    white_to_black = lda_test_acc(white_points,black_points)
+    asian_to_black = lda_test_acc(asian_points, black_points)
+    male_to_female = lda_test_acc(male_points, female_points)
 
     plt.bar(x = np.arange(4), height=[
         white_to_asian,
@@ -150,7 +138,19 @@ for conf in configs:
         'Asian to Black',
         'Male to Female'
     ])
-    plt.ylabel('$d\'$')
-    plt.title('Separation between classes learned by VAE')
-    plt.savefig(out_dir / 'd_prime_distance_between_classes.png')
+    plt.ylim(0.5, 1)
+    plt.ylabel('Accuracy')
+    plt.title('LDA Test Accuracy')
+    plt.savefig(out_dir / 'lda_test_accuracy.png')
     plt.clf()
+
+    # SVD Analysis
+    svd_analysis(white_points, asian_points, black_points, 
+                title='Singular Values of Ethnicity Classes',
+                names=['White', 'Asian', 'Black'],
+                save_path=out_dir / 'white_asian_black_sv.png')
+
+    svd_analysis(male_points, female_points,  
+                title='Singular Values of Gender Classes',
+                names=['Male', 'Female'],
+                save_path=out_dir / 'male_female_sv.png')

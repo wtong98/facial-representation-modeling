@@ -16,7 +16,7 @@ sys.path.append('../')
 
 from dataset.cfd import build_datasets
 from model.vae import VAE
-from util import lda_analysis, lda_test_acc, svd_analysis
+from util import *
 
 
 out_path = Path('../save/vae/grid_search')
@@ -97,6 +97,7 @@ for conf in configs:
     male_points = mu_points[male_idxs]
     female_points = mu_points[female_idxs]
 
+    '''
     # lda analysis
     if not (out_dir / 'lda_analysis').exists():
         (out_dir / 'lda_analysis').mkdir()
@@ -121,11 +122,47 @@ for conf in configs:
                                             name1='White',
                                             save_path=out_dir / 'lda_analysis' / 'asian_white_lda.png')
     
-    # LDA Test Error
-    white_to_asian = lda_test_acc(white_points, asian_points)
-    white_to_black = lda_test_acc(white_points,black_points)
-    asian_to_black = lda_test_acc(asian_points, black_points)
-    male_to_female = lda_test_acc(male_points, female_points)
+    '''
+    # LDA Test Error (overfitting for high-dim VAEs)
+    # white_to_asian = lda_test_acc(white_points, asian_points)
+    # white_to_black = lda_test_acc(white_points,black_points)
+    # asian_to_black = lda_test_acc(asian_points, black_points)
+    # male_to_female = lda_test_acc(male_points, female_points)
+
+    # plt.bar(x = np.arange(4), height=[
+    #     white_to_asian,
+    #     white_to_black,
+    #     asian_to_black,
+    #     male_to_female
+    # ], tick_label=[
+    #     'White to Asian',
+    #     'White to Black',
+    #     'Asian to Black',
+    #     'Male to Female'
+    # ])
+    # # plt.ylim(0.5, 1)
+    # plt.ylim(0, 1)
+    # plt.ylabel('Accuracy')
+    # plt.title('LDA Test Accuracy')
+    # plt.savefig(out_dir / 'lda_test_accuracy.png')
+    # plt.clf()
+
+    # SVD Analysis
+    # svd_analysis(white_points, asian_points, black_points, 
+    #             title='Singular Values of Ethnicity Classes',
+    #             names=['White', 'Asian', 'Black'],
+    #             save_path=out_dir / 'white_asian_black_sv.png')
+
+    # svd_analysis(male_points, female_points,  
+    #             title='Singular Values of Gender Classes',
+    #             names=['Male', 'Female'],
+    #             save_path=out_dir / 'male_female_sv.png')
+
+    # SVD test error
+    white_to_asian, w2a_pc = pca_double_descent_analysis(white_points, asian_points)
+    white_to_black, w2b_pc = pca_double_descent_analysis(white_points,black_points)
+    asian_to_black, a2b_pc = pca_double_descent_analysis(asian_points, black_points)
+    male_to_female, m2f_pc = pca_double_descent_analysis(male_points, female_points)
 
     plt.bar(x = np.arange(4), height=[
         white_to_asian,
@@ -138,19 +175,49 @@ for conf in configs:
         'Asian to Black',
         'Male to Female'
     ])
-    plt.ylim(0.5, 1)
+    # plt.ylim(0.5, 1)
+    plt.ylim(0, 1)
     plt.ylabel('Accuracy')
-    plt.title('LDA Test Accuracy')
-    plt.savefig(out_dir / 'lda_test_accuracy.png')
+    plt.title('LDA Test Accuracy on Full PC Space')
+    plt.savefig(out_dir / 'lda_pca_test_accuracy.png')
     plt.clf()
 
-    # SVD Analysis
-    svd_analysis(white_points, asian_points, black_points, 
-                title='Singular Values of Ethnicity Classes',
-                names=['White', 'Asian', 'Black'],
-                save_path=out_dir / 'white_asian_black_sv.png')
+    plt.bar(x = np.arange(4), height=[
+        w2a_pc,
+        w2b_pc,
+        a2b_pc,
+        m2f_pc
+    ], tick_label=[
+        'White to Asian',
+        'White to Black',
+        'Asian to Black',
+        'Male to Female'
+    ])
+    # plt.ylim(0, 3)
+    plt.title('Smallest SV')
+    plt.savefig(out_dir / 'smallest_sv.png')
+    plt.clf()
 
-    svd_analysis(male_points, female_points,  
-                title='Singular Values of Gender Classes',
-                names=['Male', 'Female'],
-                save_path=out_dir / 'male_female_sv.png')
+    # Bias-Variance Tradeoff (heavy computational cost)
+    # bias_var_tradeoff_curve(white_points, asian_points, 
+    #     title='Bias-Variance Tradeoff Curve for White vs Asian Classification',
+    #     save_path = out_dir / 'bias_var_tradeoff_asian_white.png')
+
+    # bias_var_tradeoff_curve(asian_points, black_points, 
+    #     title='Bias-Variance Tradeoff Curve for Black vs Asian Classification',
+    #     save_path = out_dir / 'bias_var_tradeoff_black_asian.png')
+    
+    # bias_var_tradeoff_curve(white_points, black_points, 
+    #     title='Bias-Variance Tradeoff Curve for Black vs White Classification',
+    #     save_path = out_dir / 'bias_var_tradeoff_black_white.png')
+
+    # bias_var_tradeoff_curve(male_points, female_points, 
+    #     title='Bias-Variance Tradeoff Curve for Male vs Female Classification',
+    #     save_path = out_dir / 'bias_var_tradeoff_male_female.png')
+
+    # print('Shape information:')
+    # print('white_points', white_points.shape)
+    # print('black_points', black_points.shape)
+    # print('asian_points', asian_points.shape)
+    # print('male_points', male_points.shape)
+    # print('female_points', male_points.shape)

@@ -14,7 +14,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-def compute_lda_acc(train_dat, train_labs, test_dat, test_labs):
+def compute_lda_params(train_dat, train_labs):
     X0 = train_dat[train_labs==0]
     X1 = train_dat[train_labs==1]
     sig0 = X0.T @ X0
@@ -26,6 +26,12 @@ def compute_lda_acc(train_dat, train_labs, test_dat, test_labs):
     w = np.linalg.pinv(sig) @ (mu1 - mu0)  # NOTE: using pseudoinverse
     c = w.T @ ((1/2) * (mu0 + mu1))
 
+    return w, c
+
+
+def compute_lda_acc(train_dat, train_labs, test_dat, test_labs):
+    w, c = compute_lda_params(train_dat, train_labs)
+
     Xp0 = test_dat[test_labs==0]
     Xp1 = test_dat[test_labs==1]
     score0 = Xp0 @ w + c
@@ -35,12 +41,45 @@ def compute_lda_acc(train_dat, train_labs, test_dat, test_labs):
     acc1 = np.sum(score1 >= 0) 
     acc = (acc0 + acc1) / (Xp0.shape[0] + Xp1.shape[0])
 
-    # if acc < 0.6:
-    #     print('det:', np.linalg.det(sig))
-
     return acc
 
 
+def compute_proj_coord(line, data):
+    line = line.reshape(-1, 1)
+    proj = data @ line   # NOTE: unnormalized
+    return proj
+
+
+def plot_test_hist(class0, class1, title='Test Histograms',
+                    name0='Class 0', name1='Class 1', save_path=None,
+                    test_prop=0.25, seed=53110):
+    data = np.concatenate((class0, class1))
+    labels = np.concatenate((np.zeros(class0.shape[0]), np.ones(class1.shape[0])))
+
+    train_dat, test_dat, train_labs, test_labs = train_test_split(data, labels, 
+                                        test_size=test_prop, random_state=seed)
+    
+    w, c = compute_lda_params(train_dat, train_labs)
+    proj = compute_proj_coord(w, test_dat) + c
+
+    mags_0 = proj[test_labs==0]
+    mags_1 = proj[test_labs==1]
+
+    plt.title(title)
+    plt.hist(mags_0, bins=5, alpha=0.9, label=name0)
+    plt.hist(mags_1, bins=5, alpha=0.9, label=name1)
+    plt.xlabel('Score')
+    plt.ylabel('Count')
+    plt.legend()
+
+    if save_path is not None:
+        plt.savefig(save_path)
+        plt.clf()
+    else:
+        plt.show()
+
+
+# TODO: proj calculation is off by a factor
 def lda_analysis(class0, class1, title='Projection onto LDA Axis',
                                  name0='Class 0',
                                  name1='Class 1',
@@ -248,4 +287,28 @@ def bias_var_tradeoff_curve_logreg(class0, class1, steps=50,
         plt.plot()
 
 
+def plot_compare_bars(fst_acc, fst_err, sec_acc, sec_err, tick_labs,
+                        fst_lab='First', sec_lab='Second',
+                        ylab='Count',
+                        title='Comparative Barplot',
+                        save_path=None):
     
+    x = np.arange(len(fst_acc))
+    width = 0.35
+
+    fig, ax = plt.subplots()
+    ax.bar(x - width/2, fst_acc, width, yerr=fst_err, label=fst_lab)
+    ax.bar(x + width/2, sec_acc, width, yerr=sec_err, label=sec_lab)
+
+    ax.set_ylabel(ylab)
+    ax.set_title(title)
+    ax.set_xticks(x)
+    ax.set_xticklabels(tick_labs)
+    ax.legend()
+
+    fig.tight_layout()
+    if save_path:
+        plt.savefig(save_path)
+        plt.clf()
+    else:
+        plt.show()

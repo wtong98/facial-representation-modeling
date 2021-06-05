@@ -60,6 +60,13 @@ class VAE(nn.Module):
             nn.Sigmoid()
         )
 
+        def reinit(m):
+            if isinstance(m, nn.Conv2d):
+                m.reset_parameters()
+                m.weight.data *= 0.5
+        
+        self.encoder.apply(reinit)
+
     def encode(self, data: 'Tensor') -> 'List[Tensor]':
         """
         Encodes the input by passing through the encoder network

@@ -23,7 +23,7 @@ def compute_lda_acc(train_dat, train_labs, test_dat, test_labs):
     sig = (sig0 + sig1) / (X0.shape[0] + X1.shape[1])
     mu0 = np.mean(X0, axis=0).reshape(-1, 1)
     mu1 = np.mean(X1, axis=0).reshape(-1, 1)
-    w = np.linalg.inv(sig) @ (mu1 - mu0)
+    w = np.linalg.pinv(sig) @ (mu1 - mu0)  # NOTE: using pseudoinverse
     c = w.T @ ((1/2) * (mu0 + mu1))
 
     Xp0 = test_dat[test_labs==0]
@@ -34,6 +34,10 @@ def compute_lda_acc(train_dat, train_labs, test_dat, test_labs):
     acc0 = np.sum(score0 < 0) 
     acc1 = np.sum(score1 >= 0) 
     acc = (acc0 + acc1) / (Xp0.shape[0] + Xp1.shape[0])
+
+    # if acc < 0.6:
+    #     print('det:', np.linalg.det(sig))
+
     return acc
 
 
@@ -51,17 +55,6 @@ def lda_analysis(class0, class1, title='Projection onto LDA Axis',
     mags_0 = class0 @ line * (1 / np.linalg.norm(line))
     mags_1 = class1 @ line * (1 / np.linalg.norm(line))
     data = data @ line * (1 / np.linalg.norm(line))
-    # center = np.mean(data)
-    
-    # plt.clf()
-    # plt.hist(clf.coef_.flatten())
-    # plt.savefig(str(save_path) + 'weight.png')
-    # plt.clf()
-    # print('weights', clf.coef_)
-    # print('transform:', class0 @ line)
-    # print('denom:', np.linalg.norm(line))
-    # print('mags0', mags_0)
-    # print('mags1', mags_1)
 
     plt.title(title)
     plt.hist(data, bins=_get_bins(data.flatten()), alpha=0.2, label='All points')
@@ -83,8 +76,7 @@ def _get_bins(data):
     bins = int(len(data) / 12)
     return bins
 
-
-def lda_test_acc(*classes, test_prop=0.2, seed=53110):
+def lda_test_acc(*classes, test_prop=0.1, iter=5):
     data = np.concatenate(classes)
     class_labels = []
     for i, c in enumerate(classes):
@@ -93,18 +85,19 @@ def lda_test_acc(*classes, test_prop=0.2, seed=53110):
     
     labels = np.concatenate(class_labels)
 
-    train_dat, test_dat, train_labs, test_labs = train_test_split(data, labels, 
-                                                                  test_size=test_prop, 
-                                                                  random_state=seed)
-    acc = compute_lda_acc(train_dat, train_labs, test_dat, test_labs)
-    # clf = LinearDiscriminantAnalysis()
-    # clf.fit(train_dat, train_labs)
-    # return clf.score(test_dat, test_labs)
-    return acc
+    accs = []
+    for _ in range(iter):
+        train_dat, test_dat, train_labs, test_labs = train_test_split(data, labels, 
+                                                                    test_size=test_prop)
+        acc = compute_lda_acc(train_dat, train_labs, test_dat, test_labs)
+        accs.append(acc)
+    
+    mean = np.mean(accs)
+    std_err = np.std(accs) / np.sqrt(iter)
+    
+    return mean, std_err
 
 
-# TODO: standardize features, then SVD?
-# TODO: how to generalize threshold to multiclass classification problem?
 def svd_analysis(*classes, zoom=True,
                            title='Singular Values Plot',
                            names=None,
@@ -145,64 +138,38 @@ def svd_analysis(*classes, zoom=True,
             plt.plot()
 
 
-# TODO: try logistic reg rather than LDA, which may be overfitting
 def pca_double_descent_analysis(class0, class1, 
-                                        test_prop=0.2,
-                                        seed=53110,
+                                        num_sv=10,
+                                        test_prop=0.1,
+                                        iter=5,
                                         n_components=None):
     data = np.concatenate((class0, class1))
     labels = np.concatenate((np.zeros(class0.shape[0]), np.ones(class1.shape[0])))
 
-    train_dat, test_dat, train_labs, test_labs = train_test_split(data, labels, 
-                                                                  test_size=test_prop, 
-                                                                  random_state=seed)
+    accs = []
+    smallest_svs = []
+    for _ in range(5):
+        train_dat, test_dat, train_labs, test_labs = train_test_split(data, labels, 
+                                                                    test_size=test_prop)
 
-    # NOTE: covariance matrix seems to be very nearly singular
-    # if n_components == None:
-    #     n_components = np.min(train_dat.shape) - 2
+        pca = PCA(n_components=n_components, svd_solver='full')
+        train_dat_pca = pca.fit_transform(train_dat)
+        test_dat_pca = pca.transform(test_dat)
 
-    pca = PCA(n_components=n_components, svd_solver='full')
-    train_dat_pca = pca.fit_transform(train_dat)
-    test_dat_pca = pca.transform(test_dat)
-
-    # clf = LinearDiscriminantAnalysis() # strange optimizations under the hood
-    # clf.fit(train_dat_pca, train_labs)
-    # acc = clf.score(test_dat_pca, test_labs)
-    # acc = clf.score(train_dat_pca, train_labs)
-    acc = compute_lda_acc(train_dat_pca, train_labs, test_dat_pca, test_labs)
-    smallest_sv = pca.singular_values_[-5:]
-    # if acc < 0.6:
-    #     print('bad acc: ', acc)
-    #     # train_mean = np.tile(np.mean(train_dat, axis=0), (train_dat.shape[0], 1))
-    #     # train_dat_cent = (train_dat - train_mean)[train_labs==1]
-    #     # e, _ = np.linalg.eig(train_dat_cent @ train_dat_cent.T)
-
-    #     # X = train_dat_pca[train_labs==1]
-    #     # e, _ = np.linalg.eig(X @ X.T)
-    #     # print(e)
-    #     # print('min:', np.min(e))
-
-    #     acc = compute_lda_acc(train_dat_pca, train_labs, test_dat_pca, test_labs)
-    #     print('acc:', acc)
-
-
-
-
-        # print('smallest SVs:', pca.singular_values_[-10:])
-        # print('retrying')
-        # acc, smallest_sv = pca_double_descent_analysis(class0, class1, n_components=pca.n_components_ - 1)
-        # print('new acc:', acc)
-        # print('new small sv:', smallest_sv)
-        # smallest_sv = [smallest_sv]
-        # lda_analysis(train_dat_pca[train_labs==0], train_dat_pca[train_labs==1], save_path='/tmp/haven/lda_acc_{}.png'.format(acc))
+        acc = compute_lda_acc(train_dat_pca, train_labs, test_dat_pca, test_labs)
+        accs.append(acc)
+        smallest_sv = pca.singular_values_[-num_sv:]
+        smallest_svs.append(smallest_sv)
     
-    # train_mean = np.tile(np.mean(train_dat, axis=0), (train_dat.shape[0], 1))
-    # train_dat_cent = train_dat - train_mean
-    # sv = np.linalg.svd(train_dat_cent, compute_uv=False)
-    # smallest_sv = sv[-5:]
-    # print('PC v SV diff:', smallest_pc - smallest_sv)
+    mean_acc = np.mean(accs)
+    std_err_acc = np.std(accs) / np.sqrt(iter)
 
-    return acc, smallest_sv[-1]
+    smallest_svs = np.stack(smallest_svs, axis=0)
+    mean_svs = np.mean(smallest_svs, axis=0)
+    std_err_svs = np.std(smallest_svs, axis=0) / np.sqrt(iter)
+
+    # TODO: bring new output to graphing
+    return mean_acc, std_err_acc, mean_svs, std_err_svs
 
 
 # TODO: change to new accordance

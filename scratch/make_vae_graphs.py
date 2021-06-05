@@ -6,6 +6,7 @@ import pickle
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 import torch
 from scipy.spatial import distance
@@ -38,6 +39,15 @@ configs = [
     # ModelData('vae2048', '../save/vae/vae2048.pt', { 'latent_dims': 2048 }),
 ]
 
+white_to_asian_lda_acc = []
+white_to_black_lda_acc = []
+asian_to_black_lda_acc = []
+male_to_female_lda_acc = []
+
+white_to_asian_lda_acc_pca = []
+white_to_black_lda_acc_pca = []
+asian_to_black_lda_acc_pca = []
+male_to_female_lda_acc_pca = []
 
 for conf in configs:
     print('processing conf: {}'.format(conf.name))
@@ -123,11 +133,11 @@ for conf in configs:
                                             save_path=out_dir / 'lda_analysis' / 'asian_white_lda.png')
     
     '''
-    # LDA Test Error (overfitting for high-dim VAEs)
-    # white_to_asian = lda_test_acc(white_points, asian_points)
-    # white_to_black = lda_test_acc(white_points,black_points)
-    # asian_to_black = lda_test_acc(asian_points, black_points)
-    # male_to_female = lda_test_acc(male_points, female_points)
+    # LDA Test Error
+    white_to_asian_lda_acc.append(lda_test_acc(white_points, asian_points))
+    white_to_black_lda_acc.append(lda_test_acc(white_points,black_points))
+    asian_to_black_lda_acc.append(lda_test_acc(asian_points, black_points))
+    male_to_female_lda_acc.append(lda_test_acc(male_points, female_points))
 
     # plt.bar(x = np.arange(4), height=[
     #     white_to_asian,
@@ -140,8 +150,8 @@ for conf in configs:
     #     'Asian to Black',
     #     'Male to Female'
     # ])
-    # # plt.ylim(0.5, 1)
-    # plt.ylim(0, 1)
+    # plt.ylim(0.5, 1)
+    # # plt.ylim(0, 1)
     # plt.ylabel('Accuracy')
     # plt.title('LDA Test Accuracy')
     # plt.savefig(out_dir / 'lda_test_accuracy.png')
@@ -159,44 +169,40 @@ for conf in configs:
     #             save_path=out_dir / 'male_female_sv.png')
 
     # SVD test error
-    white_to_asian, w2a_pc = pca_double_descent_analysis(white_points, asian_points)
-    white_to_black, w2b_pc = pca_double_descent_analysis(white_points,black_points)
-    asian_to_black, a2b_pc = pca_double_descent_analysis(asian_points, black_points)
-    male_to_female, m2f_pc = pca_double_descent_analysis(male_points, female_points)
+    white_to_asian_lda_acc_pca.append(pca_double_descent_analysis(white_points, asian_points))
+    white_to_black_lda_acc_pca.append(pca_double_descent_analysis(white_points,black_points))
+    asian_to_black_lda_acc_pca.append(pca_double_descent_analysis(asian_points, black_points))
+    male_to_female_lda_acc_pca.append(pca_double_descent_analysis(male_points, female_points))
 
-    plt.bar(x = np.arange(4), height=[
-        white_to_asian,
-        white_to_black,
-        asian_to_black,
-        male_to_female
-    ], tick_label=[
-        'White to Asian',
-        'White to Black',
-        'Asian to Black',
-        'Male to Female'
-    ])
+    # plt.bar(x = np.arange(4), height=[
+    #     white_to_asian,
+    #     white_to_black,
+    #     asian_to_black,
+    #     male_to_female
+    # ], tick_label=[
+    #     'White to Asian',
+    #     'White to Black',
+    #     'Asian to Black',
+    #     'Male to Female'
+    # ])
     # plt.ylim(0.5, 1)
-    plt.ylim(0, 1)
-    plt.ylabel('Accuracy')
-    plt.title('LDA Test Accuracy on Full PC Space')
-    plt.savefig(out_dir / 'lda_pca_test_accuracy.png')
-    plt.clf()
+    # # plt.ylim(0, 1)
+    # plt.ylabel('Accuracy')
+    # plt.title('LDA Test Accuracy on Full PC Space')
+    # plt.savefig(out_dir / 'lda_pca_test_accuracy.png')
+    # plt.clf()
 
-    plt.bar(x = np.arange(4), height=[
-        w2a_pc,
-        w2b_pc,
-        a2b_pc,
-        m2f_pc
-    ], tick_label=[
-        'White to Asian',
-        'White to Black',
-        'Asian to Black',
-        'Male to Female'
-    ])
-    # plt.ylim(0, 3)
-    plt.title('Smallest SV')
-    plt.savefig(out_dir / 'smallest_sv.png')
-    plt.clf()
+    # plt.plot(w2a_sv, label='Asian vs White')
+    # plt.plot(w2b_sv, label='Black vs White')
+    # plt.plot(a2b_sv, label='Asian vs Black')
+    # plt.plot(m2f_sv, label='Male vs Female')    
+
+    # plt.title('Smallest SVs')
+    # plt.ylabel('Singular Value')
+    # plt.legend()
+    # plt.savefig(out_dir / 'smallest_sv_lda.png')
+    # plt.clf()
+
 
     # Bias-Variance Tradeoff (heavy computational cost)
     # bias_var_tradeoff_curve(white_points, asian_points, 
@@ -221,3 +227,143 @@ for conf in configs:
     # print('asian_points', asian_points.shape)
     # print('male_points', male_points.shape)
     # print('female_points', male_points.shape)
+
+
+out_dir = out_path / 'fig'
+
+tick_labs = [model.name for model in configs]
+colors = ['blue', 'orange', 'green', 'red', 'purple']
+
+# Original space
+w2a_acc, w2a_err = zip(*white_to_asian_lda_acc)
+w2b_acc, w2b_err = zip(*white_to_black_lda_acc)
+
+x = np.arange(len(configs))
+width = 0.35
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, w2a_acc, width, yerr=w2a_err, label='Asian / White')
+rects2 = ax.bar(x + width/2, w2b_acc, width, yerr=w2b_err, label='Black / White')
+
+ax.set_ylabel('Accuracy')
+ax.set_title('LDA Test Accuracy')
+ax.set_xticks(x)
+ax.set_xticklabels(tick_labs)
+ax.legend()
+
+# ax.bar_label(rects1, padding=3)
+# ax.bar_label(rects2, padding=3)
+
+fig.tight_layout()
+plt.savefig(out_dir / 'asian_black_white_lda_acc.png')
+plt.clf()
+
+# def make_lda_plots(lda_result, title, save_path):
+#     acc, err = zip(*lda_result)
+#     plt.bar(x = np.arange(len(configs)), height=acc, yerr=err, tick_label=tick_labs, color=colors)
+#     plt.ylim(0.5, 1)
+#     plt.ylabel('Accuracy')
+#     plt.title(title)
+#     plt.savefig(save_path)
+#     plt.clf()
+
+
+# make_lda_plots(white_to_asian_lda_acc, 
+#                title='LDA Test Accuracy: Asian vs White', 
+#                save_path = out_dir / 'white_to_asian_lda_test_acc.png')
+
+# make_lda_plots(white_to_black_lda_acc, 
+#                title='LDA Test Accuracy: Black vs White', 
+#                save_path = out_dir / 'white_to_black_lda_test_acc.png')
+
+# make_lda_plots(asian_to_black_lda_acc, 
+#                title='LDA Test Accuracy: Asian vs Black', 
+#                save_path = out_dir / 'asian_to_black_lda_test_acc.png')
+
+
+# make_lda_plots(male_to_female_lda_acc, 
+#                title='LDA Test Accuracy: Asian vs Black', 
+#                save_path = out_dir / 'male_to_female_lda_test_acc.png')
+
+# Full PCA
+w2a_acc, w2a_err, w2a_sv, w2a_sv_err = zip(*white_to_asian_lda_acc_pca)
+w2b_acc, w2b_err, w2b_sv, w2b_sv_err = zip(*white_to_black_lda_acc_pca)
+
+x = np.arange(len(configs))
+width = 0.35
+
+fig, ax = plt.subplots()
+rects1 = ax.bar(x - width/2, w2a_acc, width, yerr=w2a_err, label='Asian / White')
+rects2 = ax.bar(x + width/2, w2b_acc, width, yerr=w2b_err, label='Black / White')
+
+ax.set_ylabel('Accuracy')
+ax.set_title('LDA Test Accuracy (Full PC Space)')
+ax.set_xticks(x)
+ax.set_xticklabels(tick_labs)
+ax.legend()
+
+# ax.bar_label(rects1, padding=3)
+# ax.bar_label(rects2, padding=3)
+
+fig.tight_layout()
+plt.savefig(out_dir / 'asian_black_white_lda_acc_pca.png')
+plt.clf()
+
+for i in range(len(w2a_sv)):
+    x = np.arange(len(w2a_sv[i]))
+    plt.errorbar(x, w2a_sv[i], fmt='-o', yerr=w2a_sv_err[i], color=colors[i])
+
+for i in range(len(w2b_sv)):
+    x = np.arange(len(w2b_sv[i]))
+    plt.errorbar(x, w2b_sv[i], fmt='--o', yerr=w2b_sv_err[i], color=colors[i])
+
+ax = plt.gca()
+for i in range(len(configs)):
+    rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
+    ax.add_patch(rect)
+
+
+plt.plot([0], [0], 'k-', label='Asian / White')
+plt.plot([0], [0], 'k--', label='Black / White')
+
+plt.title('Smallest SVs')
+plt.ylabel('Singular Value')
+plt.legend()
+plt.savefig(out_dir / 'asian_black_white_smallest_sv.png')
+plt.clf()
+
+# def make_lda_pca_plots(lda_result, title, save_path_base):
+#     acc, err, small_sv, small_sv_err = zip(*lda_result)
+#     plt.bar(x = np.arange(len(configs)), height=acc, yerr=err, tick_label=tick_labs, color=colors)
+#     plt.ylim(0.5, 1)
+#     plt.ylabel('Accuracy')
+#     plt.title(title)
+#     plt.savefig(str(save_path_base) + '_test_acc_pca.png')
+#     plt.clf()
+
+#     for i in range(len(small_sv)):
+#         x = np.arange(len(small_sv[i]))
+#         plt.errorbar(x, small_sv[i], yerr=small_sv_err[i], label=tick_labs[i], color=colors[i])
+
+#     plt.title('Smallest SVs')
+#     plt.ylabel('Singular Value')
+#     plt.legend()
+#     plt.savefig(str(save_path_base) + '_smallest_sv.png')
+#     plt.clf()
+
+
+# make_lda_pca_plots(white_to_asian_lda_acc_pca,
+#                    title='LDA Test Accuracy: Asian vs White (Full PC Space)',
+#                    save_path_base=out_dir / 'white_to_asian_lda')
+
+# make_lda_pca_plots(white_to_black_lda_acc_pca,
+#                    title='LDA Test Accuracy: Black vs White (Full PC Space)',
+#                    save_path_base=out_dir / 'white_to_black_lda')
+                   
+# make_lda_pca_plots(asian_to_black_lda_acc_pca,
+#                    title='LDA Test Accuracy: Asian vs Black (Full PC Space)',
+#                    save_path_base=out_dir / 'asian_to_black_lda')
+
+# make_lda_pca_plots(male_to_female_lda_acc_pca,
+#                    title='LDA Test Accuracy: Male vs Female (Full PC Space)',
+#                    save_path_base=out_dir / 'male_to_female_lda')

@@ -27,14 +27,16 @@ class ModelData:
         self.save_path = save_path
         self.params = params
 
-# TODO: retrain VAE models with 2^n - 1 width
 configs = [
     ModelData('vae64', '../save/vae/vae64.pt', { 'latent_dims': 64 }),
     ModelData('vae128', '../save/vae/vae128.pt', { 'latent_dims': 129 }),
     ModelData('vae256', '../save/vae/vae256.pt', { 'latent_dims': 257 }),
     ModelData('vae512', '../save/vae/vae512.pt', { 'latent_dims': 512 }),
     ModelData('vae1024', '../save/vae/vae1024.pt', { 'latent_dims': 1024 }),
-    # ModelData('vae2048', '../save/vae/vae2048.pt', { 'latent_dims': 2048 }),
+    ModelData('vae2048', '../save/vae/vae2048.pt', { 'latent_dims': 2048 }),
+    ModelData('vae4096', '../save/vae/vae4096.pt', { 'latent_dims': 4096 }),
+    ModelData('vae8192', '../save/vae/vae8192.pt', { 'latent_dims': 8192 }),
+    ModelData('vae16384', '../save/vae/vae16384.pt', { 'latent_dims': 16384 }),
 ]
 
 white_to_asian_lda_acc = []
@@ -130,7 +132,7 @@ if not out_dir.exists():
     out_dir.mkdir()
 
 tick_labs = [model.name for model in configs]
-colors = ['blue', 'orange', 'green', 'red', 'purple']
+# colors = ['blue', 'orange', 'green', 'red', 'purple']
 
 # Original space
 w2a_acc, w2a_err = zip(*white_to_asian_lda_acc)

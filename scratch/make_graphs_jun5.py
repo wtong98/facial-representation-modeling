@@ -28,9 +28,9 @@ class ModelData:
         self.params = params
 
 configs = [
-    ModelData('vae64', '../save/vae/vae64.pt', { 'latent_dims': 64 }),
-    ModelData('vae128', '../save/vae/vae128.pt', { 'latent_dims': 129 }),
-    ModelData('vae256', '../save/vae/vae256.pt', { 'latent_dims': 257 }),
+#    ModelData('vae64', '../save/vae/vae64.pt', { 'latent_dims': 64 }),
+#    ModelData('vae128', '../save/vae/vae128.pt', { 'latent_dims': 129 }),
+#    ModelData('vae256', '../save/vae/vae256.pt', { 'latent_dims': 257 }),
     ModelData('vae512', '../save/vae/vae512.pt', { 'latent_dims': 512 }),
     ModelData('vae1024', '../save/vae/vae1024.pt', { 'latent_dims': 1024 }),
     ModelData('vae2048', '../save/vae/vae2048.pt', { 'latent_dims': 2048 }),
@@ -132,7 +132,9 @@ if not out_dir.exists():
     out_dir.mkdir()
 
 tick_labs = [model.name for model in configs]
-# colors = ['blue', 'orange', 'green', 'red', 'purple']
+colors = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
+
+plt.figure(figsize=(8, 6), dpi=150)
 
 # Original space
 w2a_acc, w2a_err = zip(*white_to_asian_lda_acc)
@@ -152,26 +154,25 @@ plot_compare_bars(w2a_acc, w2a_err, w2b_acc, w2b_err, tick_labs,
                     ylab='Accuracy', title='LDA Test Accuracy (Full PC Space)', 
                     save_path=out_dir / 'asian_black_white_lda_acc_pca.png')
 
+for i in range(len(w2a_sv)):
+    x = np.arange(len(w2a_sv[i]))
+    plt.errorbar(x, w2a_sv[i], fmt='-o', yerr=w2a_sv_err[i], color=colors[i])
 
-# for i in range(len(w2a_sv)):
-#     x = np.arange(len(w2a_sv[i]))
-#     plt.errorbar(x, w2a_sv[i], fmt='-o', yerr=w2a_sv_err[i], color=colors[i])
+for i in range(len(w2b_sv)):
+    x = np.arange(len(w2b_sv[i]))
+    plt.errorbar(x, w2b_sv[i], fmt='--o', yerr=w2b_sv_err[i], color=colors[i])
 
-# for i in range(len(w2b_sv)):
-#     x = np.arange(len(w2b_sv[i]))
-#     plt.errorbar(x, w2b_sv[i], fmt='--o', yerr=w2b_sv_err[i], color=colors[i])
-
-# ax = plt.gca()
-# for i in range(len(configs)):
-#     rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
-#     ax.add_patch(rect)
+ax = plt.gca()
+for i in range(len(configs)):
+    rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
+    ax.add_patch(rect)
 
 
-# plt.plot([0], [0], 'k-', label='Asian / White')
-# plt.plot([0], [0], 'k--', label='Black / White')
+plt.plot([0], [0], 'k-', label='Asian / White')
+plt.plot([0], [0], 'k--', label='Black / White')
 
-# plt.title('Smallest SVs')
-# plt.ylabel('Singular Value')
-# plt.legend()
-# plt.savefig(out_dir / 'asian_black_white_smallest_sv.png')
-# plt.clf()
+plt.title('Smallest SVs')
+plt.ylabel('Singular Value')
+plt.legend()
+plt.savefig(out_dir / 'asian_black_white_smallest_sv.png')
+plt.clf()

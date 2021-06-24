@@ -208,7 +208,8 @@ def pca_double_descent_analysis(class0, class1,
     std_err_svs = np.std(smallest_svs, axis=0) / np.sqrt(iter)
 
     # TODO: bring new output to graphing
-    return mean_acc, std_err_acc, mean_svs, std_err_svs
+    print('skipping', mean_svs[-1], std_err_svs[-1])
+    return mean_acc, std_err_acc, mean_svs[:-1], std_err_svs[:-1]
 
 
 # TODO: change to new accordance

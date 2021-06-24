@@ -10,7 +10,6 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-from tqdm import tqdm
 
 import torch
 from torch import optim
@@ -135,7 +134,7 @@ def main():
 
         log_every = total_batches // 50 + 1
         save_every = 1   # hardcoded for now
-        for i, x in tqdm(enumerate(loader), total=total_batches):
+        for i, x in enumerate(loader):
             x = x.to(device)
             optimizer.zero_grad()
             output = model(x)

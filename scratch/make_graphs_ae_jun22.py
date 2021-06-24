@@ -2,7 +2,6 @@
 Making graphs per Jun 5 email and instructions
 """
 
-from util import *
 from model.ae import AE
 from dataset.cfd import build_datasets
 import pickle
@@ -15,6 +14,7 @@ import matplotlib.patches as mpatches
 
 import sys
 sys.path.append('../')
+from util import *
 
 
 out_path = Path('../save/ae/dd_jun22')
@@ -138,46 +138,47 @@ if not out_dir.exists():
     out_dir.mkdir()
 
 tick_labs = [model.name for model in configs]
-# colors = ['blue', 'orange', 'green', 'red', 'purple']
+colors = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
+
+plt.figure(figsize=(8, 6), dpi=150)
 
 # Original space
 w2a_acc, w2a_err = zip(*white_to_asian_lda_acc)
 w2b_acc, w2b_err = zip(*white_to_black_lda_acc)
 
 plot_compare_bars(w2a_acc, w2a_err, w2b_acc, w2b_err, tick_labs,
-                  fst_lab='White / Asian', sec_lab='Black / White',
-                  ylab='Accuracy', title='LDA Test Accuracy',
-                  save_path=out_dir / 'asian_black_white_lda_acc.png')
+                    fst_lab='White / Asian', sec_lab='Black / White',
+                    ylab='Accuracy', title='LDA Test Accuracy', 
+                    save_path=out_dir / 'asian_black_white_lda_acc.png')
 
 
 w2a_acc, w2a_err, w2a_sv, w2a_sv_err = zip(*white_to_asian_lda_acc_pca)
 w2b_acc, w2b_err, w2b_sv, w2b_sv_err = zip(*white_to_black_lda_acc_pca)
 
 plot_compare_bars(w2a_acc, w2a_err, w2b_acc, w2b_err, tick_labs,
-                  fst_lab='White / Asian', sec_lab='Black / White',
-                  ylab='Accuracy', title='LDA Test Accuracy (Full PC Space)',
-                  save_path=out_dir / 'asian_black_white_lda_acc_pca.png')
+                    fst_lab='White / Asian', sec_lab='Black / White',
+                    ylab='Accuracy', title='LDA Test Accuracy (Full PC Space)', 
+                    save_path=out_dir / 'asian_black_white_lda_acc_pca.png')
+
+for i in range(len(w2a_sv)):
+    x = np.arange(len(w2a_sv[i]))
+    plt.errorbar(x, w2a_sv[i], fmt='-o', yerr=w2a_sv_err[i], color=colors[i])
+
+for i in range(len(w2b_sv)):
+    x = np.arange(len(w2b_sv[i]))
+    plt.errorbar(x, w2b_sv[i], fmt='--o', yerr=w2b_sv_err[i], color=colors[i])
+
+ax = plt.gca()
+for i in range(len(configs)):
+    rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
+    ax.add_patch(rect)
 
 
-# for i in range(len(w2a_sv)):
-#     x = np.arange(len(w2a_sv[i]))
-#     plt.errorbar(x, w2a_sv[i], fmt='-o', yerr=w2a_sv_err[i], color=colors[i])
+plt.plot([0], [0], 'k-', label='Asian / White')
+plt.plot([0], [0], 'k--', label='Black / White')
 
-# for i in range(len(w2b_sv)):
-#     x = np.arange(len(w2b_sv[i]))
-#     plt.errorbar(x, w2b_sv[i], fmt='--o', yerr=w2b_sv_err[i], color=colors[i])
-
-# ax = plt.gca()
-# for i in range(len(configs)):
-#     rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
-#     ax.add_patch(rect)
-
-
-# plt.plot([0], [0], 'k-', label='Asian / White')
-# plt.plot([0], [0], 'k--', label='Black / White')
-
-# plt.title('Smallest SVs')
-# plt.ylabel('Singular Value')
-# plt.legend()
-# plt.savefig(out_dir / 'asian_black_white_smallest_sv.png')
-# plt.clf()
+plt.title('Smallest SVs')
+plt.ylabel('Singular Value')
+plt.legend()
+plt.savefig(out_dir / 'asian_black_white_smallest_sv.png')
+plt.clf()

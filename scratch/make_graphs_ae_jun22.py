@@ -2,8 +2,6 @@
 Making graphs per Jun 5 email and instructions
 """
 
-from model.ae import AE
-from dataset.cfd import build_datasets
 import pickle
 from pathlib import Path
 
@@ -14,6 +12,9 @@ import matplotlib.patches as mpatches
 
 import sys
 sys.path.append('../')
+
+from dataset.cfd import build_datasets
+from model.ae import AE
 from util import *
 
 

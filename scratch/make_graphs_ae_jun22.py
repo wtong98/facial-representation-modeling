@@ -12,6 +12,9 @@ import matplotlib.patches as mpatches
 
 import sys
 sys.path.append('../')
+
+from dataset.cfd import build_datasets
+from model.ae import AE
 from util import *
 from model.ae import AE
 from dataset.cfd import build_datasets

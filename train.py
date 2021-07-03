@@ -20,7 +20,8 @@ from model.hm_binary import HM
 from model.ae import AE
 from model.vae import VAE
 from model.vae_gm import GMVAE
-from dataset.celeba import build_datasets
+from dataset.synthetic import build_datasets
+# from dataset.celeba import build_datasets
 # from dataset.celeba_single import build_datasets
 # from dataset.mnist import build_datasets
 

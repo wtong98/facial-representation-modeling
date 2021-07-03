@@ -2,8 +2,6 @@
 Making graphs per Jun 5 email and instructions
 """
 
-from model.ae import AE
-from dataset.cfd import build_datasets
 import pickle
 from pathlib import Path
 
@@ -15,6 +13,8 @@ import matplotlib.patches as mpatches
 import sys
 sys.path.append('../')
 from util import *
+from model.ae import AE
+from dataset.cfd import build_datasets
 
 
 out_path = Path('../save/ae/dd_jun22')
@@ -29,9 +29,9 @@ class ModelData:
 
 
 configs = [
-    ModelData('vae64', '../save/ae64_jun19/final.pt', {'latent_dims': 64}),
-    ModelData('vae128', '../save/ae128_jun19/final.pt', {'latent_dims': 129}),
-    ModelData('vae256', '../save/ae256_jun19/final.pt', {'latent_dims': 257}),
+    # ModelData('vae64', '../save/ae64_jun19/final.pt', {'latent_dims': 64}),
+    # ModelData('vae128', '../save/ae128_jun19/final.pt', {'latent_dims': 129}),
+    # ModelData('vae256', '../save/ae256_jun19/final.pt', {'latent_dims': 257}),
     ModelData('vae512', '../save/ae512_jun19/final.pt', {'latent_dims': 512}),
     ModelData('vae1024', '../save/ae1024_jun19/final.pt',
               {'latent_dims': 1024}),
@@ -125,12 +125,12 @@ for conf in configs:
     male_to_female_lda_acc_pca.append(
         pca_double_descent_analysis(male_points, female_points))
 
-    plot_test_hist(asian_points, white_points, title='Asian / White LDA Test Points',
-                   name0='Asian', name1='White', save_path=out_dir / 'asian_white_lda_test_hist.png')
-
-    plot_test_hist(black_points, white_points, title='Black / White LDA Test Points',
-                   name0='Black', name1='White', save_path=out_dir / 'black_white_lda_test_hist.png')
-
+#     plot_test_hist(asian_points, white_points, title='Asian / White LDA Test Points',
+#                    name0='Asian', name1='White', save_path=out_dir / 'asian_white_lda_test_hist.png')
+# 
+#     plot_test_hist(black_points, white_points, title='Black / White LDA Test Points',
+#                    name0='Black', name1='White', save_path=out_dir / 'black_white_lda_test_hist.png')
+# 
 
 # SUMMARY RUNS ------------------------------------------------------------
 out_dir = out_path / 'fig'

@@ -24,10 +24,13 @@ from dataset.celeba import TOTAL_IMAGES as CELEBA_LEN
 IM_DIMS = (218, 178)
 
 class SyntheticDataset(Dataset):
-    def __init__(self, model_path: Path, total_images=CELEBA_LEN, true_width=64, seed=CELEBA_LEN):
+    def __init__(self, model_path: Path, total_images=CELEBA_LEN, true_width=64, seed=None):
         self.model_path = model_path
         self.total_images = total_images
         self.decoder = None
+
+        if seed == None:
+            seed = total_images
 
         torch.manual_seed(seed)
 

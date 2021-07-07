@@ -18,11 +18,10 @@ from dataset.synthetic import build_datasets
 from model.ae import AE
 from util import *
 from model.ae import AE
-from dataset.cfd import build_datasets
 
 
 out_path = Path('../save/ae/dd_syn_jul5')
-_, test_ds = build_datasets(Path('../save/syn_model'), total=TOTAL_IMAGES, train_test_split=1)
+_, test_ds = build_datasets(Path('../save/syn_model'), total=TOTAL_IMAGES, return_labels=True, train_test_split=1)
 
 
 class ModelData:
@@ -49,14 +48,8 @@ configs = [
               {'latent_dims': 16384}),
 ]
 
-white_to_asian_lda_acc = []
-white_to_black_lda_acc = []
-asian_to_black_lda_acc = []
+# For convenience, assuming 0 = male and 1 = female
 male_to_female_lda_acc = []
-
-white_to_asian_lda_acc_pca = []
-white_to_black_lda_acc_pca = []
-asian_to_black_lda_acc_pca = []
 male_to_female_lda_acc_pca = []
 
 for conf in configs:
@@ -98,34 +91,15 @@ for conf in configs:
             feats = pickle.load(fp)
 
     # stratify points
-    all_colors = np.array([int(feat['ethnicity']) for feat in feats])
-    all_genders = np.array([int(feat['gender']) for feat in feats])
+    male_idxs = [val == 0 for val in feats]
+    female_idxs = [val == 1 for val in feats]
 
-    white_idxs = [val == 0 for val in all_colors]
-    black_idxs = [val == 1 for val in all_colors]
-    asian_idxs = [val == 2 for val in all_colors]
-
-    male_idxs = [val == 0 for val in all_genders]
-    female_idxs = [val == 1 for val in all_genders]
-
-    white_points = mu_points[white_idxs]
-    black_points = mu_points[black_idxs]
-    asian_points = mu_points[asian_idxs]
     male_points = mu_points[male_idxs]
     female_points = mu_points[female_idxs]
 
     # BEGIN ANALYSIS RUNS ------------------------------------------------
-    white_to_asian_lda_acc.append(lda_test_acc(white_points, asian_points))
-    white_to_black_lda_acc.append(lda_test_acc(white_points, black_points))
-    asian_to_black_lda_acc.append(lda_test_acc(asian_points, black_points))
     male_to_female_lda_acc.append(lda_test_acc(male_points, female_points))
 
-    white_to_asian_lda_acc_pca.append(
-        pca_double_descent_analysis(white_points, asian_points))
-    white_to_black_lda_acc_pca.append(
-        pca_double_descent_analysis(white_points, black_points))
-    asian_to_black_lda_acc_pca.append(
-        pca_double_descent_analysis(asian_points, black_points))
     male_to_female_lda_acc_pca.append(
         pca_double_descent_analysis(male_points, female_points))
 
@@ -147,42 +121,32 @@ colors = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 plt.figure(figsize=(8, 6), dpi=150)
 
 # Original space
-w2a_acc, w2a_err = zip(*white_to_asian_lda_acc)
-w2b_acc, w2b_err = zip(*white_to_black_lda_acc)
+acc, err = zip(*male_to_female_lda_acc)
+plot_err_bars(acc, err, tick_labs, title='AE Error on Synthetic Data', save_path=out_dir / 'error_lda.png')
 
-plot_compare_bars(w2a_acc, w2a_err, w2b_acc, w2b_err, tick_labs,
-                    fst_lab='White / Asian', sec_lab='Black / White',
-                    ylab='Accuracy', title='LDA Test Accuracy', 
-                    save_path=out_dir / 'asian_black_white_lda_acc.png')
+acc, err, sv, sv_err = zip(*male_to_female_lda_acc_pca)
+plot_err_bars(acc, err, tick_labs, title='AE Error on Synthetic Data (Full PC Space)', save_path=out_dir / 'error_lda.png')
 
 
-w2a_acc, w2a_err, w2a_sv, w2a_sv_err = zip(*white_to_asian_lda_acc_pca)
-w2b_acc, w2b_err, w2b_sv, w2b_sv_err = zip(*white_to_black_lda_acc_pca)
+# for i in range(len(sv)):
+#     x = np.arange(len(sv[i]))
+#     plt.errorbar(x, sv[i], fmt='-o', yerr=sv_err[i], color=colors[i])
 
-plot_compare_bars(w2a_acc, w2a_err, w2b_acc, w2b_err, tick_labs,
-                    fst_lab='White / Asian', sec_lab='Black / White',
-                    ylab='Accuracy', title='LDA Test Accuracy (Full PC Space)', 
-                    save_path=out_dir / 'asian_black_white_lda_acc_pca.png')
+# for i in range(len(sv)):
+#     x = np.arange(len(sv[i]))
+#     plt.errorbar(x, sv[i], fmt='--o', yerr=sv_err[i], color=colors[i])
 
-for i in range(len(w2a_sv)):
-    x = np.arange(len(w2a_sv[i]))
-    plt.errorbar(x, w2a_sv[i], fmt='-o', yerr=w2a_sv_err[i], color=colors[i])
-
-for i in range(len(w2b_sv)):
-    x = np.arange(len(w2b_sv[i]))
-    plt.errorbar(x, w2b_sv[i], fmt='--o', yerr=w2b_sv_err[i], color=colors[i])
-
-ax = plt.gca()
-for i in range(len(configs)):
-    rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
-    ax.add_patch(rect)
+# ax = plt.gca()
+# for i in range(len(configs)):
+#     rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
+#     ax.add_patch(rect)
 
 
-plt.plot([0], [0], 'k-', label='Asian / White')
-plt.plot([0], [0], 'k--', label='Black / White')
+# plt.plot([0], [0], 'k-', label='Asian / White')
+# plt.plot([0], [0], 'k--', label='Black / White')
 
-plt.title('Smallest SVs')
-plt.ylabel('Singular Value')
-plt.legend()
-plt.savefig(out_dir / 'asian_black_white_smallest_sv.png')
-plt.clf()
+# plt.title('Smallest SVs')
+# plt.ylabel('Singular Value')
+# plt.legend()
+# plt.savefig(out_dir / 'smallest_sv.png')
+# plt.clf()

@@ -24,9 +24,10 @@ from dataset.celeba import TOTAL_IMAGES as CELEBA_LEN
 IM_DIMS = (218, 178)
 
 class SyntheticDataset(Dataset):
-    def __init__(self, model_path: Path, total_images=CELEBA_LEN, true_width=64, seed=None):
+    def __init__(self, model_path: Path, total_images=CELEBA_LEN, true_width=64, return_labels=False, seed=None):
         self.model_path = model_path
         self.total_images = total_images
+        self.return_labels = return_labels
         self.decoder = None
 
         if seed == None:
@@ -57,14 +58,20 @@ class SyntheticDataset(Dataset):
     def __getitem__(self, idx):
         with torch.no_grad():
             samp = self.samp_0 if idx % 2 == 0 else self.samp_1
-            return torch.squeeze(self.decoder(samp[idx]))
+            point = torch.squeeze(self.decoder(samp[idx]))
+            
+            if self.return_labels:
+                return point, idx % 2
+            else:
+                return point
+
 
     def __len__(self):
         return self.total_images
 
 
-def build_datasets(model_path, total=CELEBA_LEN, train_test_split=0.01, seed=53110) -> Tuple[Dataset, Dataset]:
-    ds = SyntheticDataset(model_path, total_images=total)
+def build_datasets(model_path, total=CELEBA_LEN, return_labels=False, train_test_split=0.01, seed=53110) -> Tuple[Dataset, Dataset]:
+    ds = SyntheticDataset(model_path, total_images=total, return_labels=return_labels)
     total = len(ds)
 
     num_test = int(total * train_test_split)

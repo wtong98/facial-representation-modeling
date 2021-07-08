@@ -317,6 +317,7 @@ def plot_compare_bars(fst_acc, fst_err, sec_acc, sec_err, tick_labs,
 
 def plot_err_bars(acc, err, tick_labs, ylab='Count', title='Error Plot', save_path=None):
     class_err = [1 - a for a in acc]
+
     plt.bar(np.arange(len(class_err)), class_err, yerr=err, tick_label=tick_labs)
     plt.ylabel(ylab)
     plt.title(title)
@@ -326,4 +327,3 @@ def plot_err_bars(acc, err, tick_labs, ylab='Count', title='Error Plot', save_pa
         plt.clf()
     else:
         plt.show()
-    

@@ -17,7 +17,6 @@ from dataset.cfd import TOTAL_IMAGES
 from dataset.synthetic import build_datasets
 from model.ae import AE
 from util import *
-from model.ae import AE
 
 
 out_path = Path('../save/ae/dd_syn_jul5')
@@ -33,19 +32,19 @@ class ModelData:
 
 configs = [
     ModelData('vae64', '../save/ae64_syn_jul3/final.pt', {'latent_dims': 64}),
-    ModelData('vae128', '../save/ae128_syn_jul3/final.pt', {'latent_dims': 127}),
-    ModelData('vae256', '../save/ae256_syn_jul3/final.pt', {'latent_dims': 255}),
-    ModelData('vae512', '../save/ae512_syn_jul3/final.pt', {'latent_dims': 511}),
-    ModelData('vae1024', '../save/ae1024_syn_jul3/final.pt',
-              {'latent_dims': 1023}),
-    ModelData('vae2048', '../save/ae2048_syn_jul3/final.pt',
-              {'latent_dims': 2048}),
-    ModelData('vae4096', '../save/ae4096_syn_jul3/final.pt',
-              {'latent_dims': 4096}),
-    ModelData('vae8192', '../save/ae8192_syn_jul3/final.pt',
-              {'latent_dims': 8192}),
-    ModelData('vae16384', '../save/ae16384_syn_jul3/final.pt',
-              {'latent_dims': 16384}),
+    # ModelData('vae128', '../save/ae128_syn_jul3/final.pt', {'latent_dims': 127}),
+    # ModelData('vae256', '../save/ae256_syn_jul3/final.pt', {'latent_dims': 255}),
+    # ModelData('vae512', '../save/ae512_syn_jul3/final.pt', {'latent_dims': 511}),
+    # ModelData('vae1024', '../save/ae1024_syn_jul3/final.pt',
+    #           {'latent_dims': 1023}),
+    # ModelData('vae2048', '../save/ae2048_syn_jul3/final.pt',
+    #           {'latent_dims': 2048}),
+    # ModelData('vae4096', '../save/ae4096_syn_jul3/final.pt',
+    #           {'latent_dims': 4096}),
+    # ModelData('vae8192', '../save/ae8192_syn_jul3/final.pt',
+    #           {'latent_dims': 8192}),
+    # ModelData('vae16384', '../save/ae16384_syn_jul3/final.pt',
+    #           {'latent_dims': 16384}),
 ]
 
 # For convenience, assuming 0 = male and 1 = female
@@ -103,12 +102,8 @@ for conf in configs:
     male_to_female_lda_acc_pca.append(
         pca_double_descent_analysis(male_points, female_points))
 
-#     plot_test_hist(asian_points, white_points, title='Asian / White LDA Test Points',
-#                    name0='Asian', name1='White', save_path=out_dir / 'asian_white_lda_test_hist.png')
-# 
-#     plot_test_hist(black_points, white_points, title='Black / White LDA Test Points',
-#                    name0='Black', name1='White', save_path=out_dir / 'black_white_lda_test_hist.png')
-# 
+    plot_test_hist(male_points, female_points, title='LDA Test Points',
+                   name0='Class 0', name1='Class 1', save_path=out_dir / 'lda_test_hist.png')
 
 # SUMMARY RUNS ------------------------------------------------------------
 out_dir = out_path / 'fig'
@@ -125,28 +120,30 @@ acc, err = zip(*male_to_female_lda_acc)
 plot_err_bars(acc, err, tick_labs, title='AE Error on Synthetic Data', save_path=out_dir / 'error_lda.png')
 
 acc, err, sv, sv_err = zip(*male_to_female_lda_acc_pca)
-plot_err_bars(acc, err, tick_labs, title='AE Error on Synthetic Data (Full PC Space)', save_path=out_dir / 'error_lda.png')
+plot_err_bars(acc, err, tick_labs, title='AE Error on Synthetic Data (Full PC Space)', save_path=out_dir / 'error_lda_pca.png')
+
+sv = sv[-len(colors):]
+sv_err = sv_err[-len(colors):]
+
+for i in range(len(sv)):
+    x = np.arange(len(sv[i]))
+    plt.errorbar(x, sv[i], fmt='-o', yerr=sv_err[i], color=colors[i])
+
+for i in range(len(sv)):
+    x = np.arange(len(sv[i]))
+    plt.errorbar(x, sv[i], fmt='--o', yerr=sv_err[i], color=colors[i])
+
+ax = plt.gca()
+for i in range(len(configs)):
+    rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
+    ax.add_patch(rect)
 
 
-# for i in range(len(sv)):
-#     x = np.arange(len(sv[i]))
-#     plt.errorbar(x, sv[i], fmt='-o', yerr=sv_err[i], color=colors[i])
+plt.plot([0], [0], 'k-', label='Asian / White')
+plt.plot([0], [0], 'k--', label='Black / White')
 
-# for i in range(len(sv)):
-#     x = np.arange(len(sv[i]))
-#     plt.errorbar(x, sv[i], fmt='--o', yerr=sv_err[i], color=colors[i])
-
-# ax = plt.gca()
-# for i in range(len(configs)):
-#     rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
-#     ax.add_patch(rect)
-
-
-# plt.plot([0], [0], 'k-', label='Asian / White')
-# plt.plot([0], [0], 'k--', label='Black / White')
-
-# plt.title('Smallest SVs')
-# plt.ylabel('Singular Value')
-# plt.legend()
-# plt.savefig(out_dir / 'smallest_sv.png')
-# plt.clf()
+plt.title('Smallest SVs')
+plt.ylabel('Singular Value')
+plt.legend()
+plt.savefig(out_dir / 'smallest_sv.png')
+plt.clf()

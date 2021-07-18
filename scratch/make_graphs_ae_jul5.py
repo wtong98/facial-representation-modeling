@@ -32,19 +32,19 @@ class ModelData:
 
 configs = [
     ModelData('vae64', '../save/ae64_syn_jul3/final.pt', {'latent_dims': 64}),
-    # ModelData('vae128', '../save/ae128_syn_jul3/final.pt', {'latent_dims': 127}),
-    # ModelData('vae256', '../save/ae256_syn_jul3/final.pt', {'latent_dims': 255}),
-    # ModelData('vae512', '../save/ae512_syn_jul3/final.pt', {'latent_dims': 511}),
-    # ModelData('vae1024', '../save/ae1024_syn_jul3/final.pt',
-    #           {'latent_dims': 1023}),
-    # ModelData('vae2048', '../save/ae2048_syn_jul3/final.pt',
-    #           {'latent_dims': 2048}),
-    # ModelData('vae4096', '../save/ae4096_syn_jul3/final.pt',
-    #           {'latent_dims': 4096}),
-    # ModelData('vae8192', '../save/ae8192_syn_jul3/final.pt',
-    #           {'latent_dims': 8192}),
-    # ModelData('vae16384', '../save/ae16384_syn_jul3/final.pt',
-    #           {'latent_dims': 16384}),
+    ModelData('vae128', '../save/ae128_syn_jul3/final.pt', {'latent_dims': 127}),
+    ModelData('vae256', '../save/ae256_syn_jul3/final.pt', {'latent_dims': 255}),
+    ModelData('vae512', '../save/ae512_syn_jul3/final.pt', {'latent_dims': 511}),
+    ModelData('vae1024', '../save/ae1024_syn_jul3/final.pt',
+              {'latent_dims': 1023}),
+    ModelData('vae2048', '../save/ae2048_syn_jul3/final.pt',
+              {'latent_dims': 2048}),
+    ModelData('vae4096', '../save/ae4096_syn_jul3/final.pt',
+              {'latent_dims': 4096}),
+    ModelData('vae8192', '../save/ae8192_syn_jul3/final.pt',
+              {'latent_dims': 8192}),
+    ModelData('vae16384', '../save/ae16384_syn_jul3/final.pt',
+              {'latent_dims': 16384}),
 ]
 
 # For convenience, assuming 0 = male and 1 = female
@@ -129,21 +129,16 @@ for i in range(len(sv)):
     x = np.arange(len(sv[i]))
     plt.errorbar(x, sv[i], fmt='-o', yerr=sv_err[i], color=colors[i])
 
-for i in range(len(sv)):
-    x = np.arange(len(sv[i]))
-    plt.errorbar(x, sv[i], fmt='--o', yerr=sv_err[i], color=colors[i])
-
 ax = plt.gca()
-for i in range(len(configs)):
+for i in range(len(colors)):
     rect = mpatches.Rectangle((0, 0), 0.001, 0.001, color=colors[i], label=tick_labs[i])
     ax.add_patch(rect)
 
 
-plt.plot([0], [0], 'k-', label='Asian / White')
-plt.plot([0], [0], 'k--', label='Black / White')
+plt.plot([0], [0], 'k-')
 
 plt.title('Smallest SVs')
-plt.ylabel('Singular Value')
 plt.legend()
+plt.ylabel('Singular Value')
 plt.savefig(out_dir / 'smallest_sv.png')
 plt.clf()

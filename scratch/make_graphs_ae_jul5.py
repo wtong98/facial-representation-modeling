@@ -104,6 +104,8 @@ for conf in configs:
 
     plot_test_hist(male_points, female_points, title='LDA Test Points',
                    name0='Class 0', name1='Class 1', save_path=out_dir / 'lda_test_hist.png')
+    
+    plot_heatmap(mu_points, title='Heatmap of Right Singular Vectors (V)', save_path=out_dir / 'heatmap.png')
 
 # SUMMARY RUNS ------------------------------------------------------------
 out_dir = out_path / 'fig'

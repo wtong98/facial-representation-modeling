@@ -327,3 +327,21 @@ def plot_err_bars(acc, err, tick_labs, ylab='Count', title='Error Plot', save_pa
         plt.clf()
     else:
         plt.show()
+
+
+def plot_heatmap(points, title='Heatmap', save_path=None):
+    _, _, V = np.linalg.svd(points)
+    plt.imshow(V)
+    plt.title(title)
+
+    # Loop over data dimensions and create text annotations.
+    # for i in range(len(mat)):
+    #     for j in range(len(mat[0])):
+    #         ax.text(j, i, mat[i, j],
+    #                     ha="center", va="center", color="w")
+
+    if save_path:
+        plt.savefig(save_path)
+        plt.clf()
+    else:
+        plt.show()
